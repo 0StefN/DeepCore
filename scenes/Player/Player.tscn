@@ -1,0 +1,25 @@
+[gd_scene format=3 uid="uid://dte5wob5y8gej"]
+
+[ext_resource type="Script" uid="uid://bpwgbs6kwll0g" path="res://scripts/general/player.gd" id="1_h00vy"]
+[ext_resource type="Script" uid="uid://bj3lt5wl3fv8i" path="res://scripts/general/InventoryManager.gd" id="2_bvqhm"]
+[ext_resource type="Script" uid="uid://dtgxvxyyn44tx" path="res://scripts/general/MiningComponent.gd" id="3_ved6o"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_qtl8q"]
+size = Vector2(20, 28)
+
+[node name="Player" type="CharacterBody2D" unique_id=1760768897]
+script = ExtResource("1_h00vy")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1988058066]
+position = Vector2(0, -14)
+shape = SubResource("RectangleShape2D_qtl8q")
+
+[node name="Camera2D" type="Camera2D" parent="." unique_id=356018269]
+zoom = Vector2(1.5, 1.5)
+position_smoothing_enabled = true
+
+[node name="InventoryManager" type="Node" parent="." unique_id=1160982515]
+script = ExtResource("2_bvqhm")
+
+[node name="MiningComponent" type="Node" parent="." unique_id=212323674]
+script = ExtResource("3_ved6o")

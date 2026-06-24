@@ -1,0 +1,25 @@
+[gd_scene format=3 uid="uid://dco1v7yq5q22s"]
+
+[ext_resource type="Texture2D" uid="uid://cd2hugcat4sdb" path="res://assets/textures/Chest.png" id="1_psq8o"]
+[ext_resource type="Script" uid="uid://cti7glphvjiv3" path="res://scripts/general/Chest.gd" id="1_stee4"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_qtl8q"]
+size = Vector2(6, 4)
+
+[node name="Chest" type="Area2D" unique_id=1492673063]
+script = ExtResource("1_stee4")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1800065031]
+scale = Vector2(11.270837, 11.270837)
+shape = SubResource("RectangleShape2D_qtl8q")
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=1057880230]
+scale = Vector2(0.08332522, 0.08332522)
+texture = ExtResource("1_psq8o")
+
+[node name="InterractionPrompt" type="Label" parent="." unique_id=1694532372]
+offset_left = -64.0
+offset_top = -46.0
+offset_right = 73.0
+offset_bottom = -23.0
+text = "Press E to deposit"

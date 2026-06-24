@@ -1,0 +1,131 @@
+[gd_scene format=3 uid="uid://jkfboukbn1cb"]
+
+[ext_resource type="Script" uid="uid://d2gcmwqsfhoyw" path="res://scripts/ui/BiddingUI.gd" id="1_hl66o"]
+
+[node name="BiddingUi" type="VBoxContainer" unique_id=298954059]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_hl66o")
+
+[node name="TopBar" type="HBoxContainer" parent="." unique_id=922481985]
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+
+[node name="DayLabel" type="Label" parent="TopBar" unique_id=1494521688]
+layout_mode = 2
+text = "Jour 1"
+
+[node name="TimerLabel" type="Label" parent="TopBar" unique_id=1952216352]
+layout_mode = 2
+text = "1:00"
+
+[node name="BudgetLabel" type="Label" parent="TopBar" unique_id=728045108]
+layout_mode = 2
+text = "1000$"
+
+[node name="MainLayout" type="HBoxContainer" parent="." unique_id=1365008220]
+layout_mode = 2
+
+[node name="LeftPanel" type="VBoxContainer" parent="MainLayout" unique_id=1269610079]
+layout_mode = 2
+
+[node name="PublicParcelBox" type="VBoxContainer" parent="MainLayout/LeftPanel" unique_id=911477686]
+layout_mode = 2
+size_flags_vertical = 0
+
+[node name="PublicLabel" type="Label" parent="MainLayout/LeftPanel/PublicParcelBox" unique_id=882803466]
+layout_mode = 2
+text = "Parcelle Publique (Gratuite)"
+
+[node name="PublicCardSlot" type="Control" parent="MainLayout/LeftPanel/PublicParcelBox" unique_id=685000904]
+custom_minimum_size = Vector2(120, 140)
+layout_mode = 2
+
+[node name="ParcelGrid" type="GridContainer" parent="MainLayout/LeftPanel" unique_id=536508157]
+layout_mode = 2
+columns = 4
+
+[node name="RightPanel" type="VBoxContainer" parent="MainLayout" unique_id=1433931680]
+layout_mode = 2
+
+[node name="BidPanel" type="PanelContainer" parent="MainLayout/RightPanel" unique_id=2033474362]
+layout_mode = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MainLayout/RightPanel/BidPanel" unique_id=924057035]
+layout_mode = 2
+
+[node name="ParcelTitle" type="Label" parent="MainLayout/RightPanel/BidPanel/VBoxContainer" unique_id=1688044203]
+layout_mode = 2
+text = "Sélectionne une parcelle"
+
+[node name="InfoGrid" type="GridContainer" parent="MainLayout/RightPanel/BidPanel/VBoxContainer" unique_id=839191142]
+layout_mode = 2
+columns = 2
+
+[node name="Label" type="Label" parent="MainLayout/RightPanel/BidPanel/VBoxContainer/InfoGrid" unique_id=231679732]
+layout_mode = 2
+text = "Sol :"
+
+[node name="SolValue" type="Label" parent="MainLayout/RightPanel/BidPanel/VBoxContainer/InfoGrid" unique_id=191522920]
+layout_mode = 2
+text = "-"
+
+[node name="Label2" type="Label" parent="MainLayout/RightPanel/BidPanel/VBoxContainer/InfoGrid" unique_id=1570211342]
+layout_mode = 2
+text = "Pronfondeur :"
+
+[node name="ProfondeurValue" type="Label" parent="MainLayout/RightPanel/BidPanel/VBoxContainer/InfoGrid" unique_id=974314420]
+layout_mode = 2
+text = "-"
+
+[node name="Label3" type="Label" parent="MainLayout/RightPanel/BidPanel/VBoxContainer/InfoGrid" unique_id=146508321]
+layout_mode = 2
+text = "Ressource  :"
+
+[node name="RessourceValue" type="Label" parent="MainLayout/RightPanel/BidPanel/VBoxContainer/InfoGrid" unique_id=874680538]
+layout_mode = 2
+text = "-"
+
+[node name="Label4" type="Label" parent="MainLayout/RightPanel/BidPanel/VBoxContainer/InfoGrid" unique_id=1278008634]
+layout_mode = 2
+text = "Prix de base :"
+
+[node name="PrixValue" type="Label" parent="MainLayout/RightPanel/BidPanel/VBoxContainer/InfoGrid" unique_id=437120429]
+layout_mode = 2
+text = "-"
+
+[node name="TypeWarning" type="Label" parent="MainLayout/RightPanel/BidPanel/VBoxContainer" unique_id=1945091513]
+layout_mode = 2
+
+[node name="BidAmountLabel" type="Label" parent="MainLayout/RightPanel/BidPanel/VBoxContainer" unique_id=1465213848]
+layout_mode = 2
+text = "Votre offre : 0$"
+
+[node name="BidSlider" type="HSlider" parent="MainLayout/RightPanel/BidPanel/VBoxContainer" unique_id=578731588]
+layout_mode = 2
+
+[node name="ConfirmBidButton" type="Button" parent="MainLayout/RightPanel/BidPanel/VBoxContainer" unique_id=1426538194]
+layout_mode = 2
+text = "Confirm"
+
+[node name="ClearBidButton" type="Button" parent="MainLayout/RightPanel/BidPanel/VBoxContainer" unique_id=2013341011]
+layout_mode = 2
+text = "Clear"
+
+[node name="CorpsPanel" type="VBoxContainer" parent="MainLayout/RightPanel" unique_id=462305045]
+layout_mode = 2
+
+[node name="BottomBar" type="HBoxContainer" parent="." unique_id=356192393]
+layout_mode = 2
+
+[node name="HelpLabel" type="Label" parent="BottomBar" unique_id=802386354]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Clique sur une parcelle pour enchérir"
+
+[node name="ConfirmAllButton" type="Button" parent="BottomBar" unique_id=308598769]
+layout_mode = 2
+text = "Confirmer et miner →"
