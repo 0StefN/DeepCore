@@ -14,6 +14,8 @@ extends Node2D
 
 const TILE_SIZE: int = 32
 
+const DROP_SCENE: PackedScene = preload("res://scenes/Level/ResourceDrop.tscn")
+
 @onready var surface_tiles: TileMapLayer    = $SurfaceTileLayer
 @onready var mine_tiles:    TileMapLayer    = $MineTileLayer
 @onready var chest:         Chest           = $Chest
@@ -24,16 +26,25 @@ const TILE_SIZE: int = 32
 @onready var mine_start:    Marker2D        = $MineStart
 @onready var shaft_center:  Marker2D        = $ShaftCenter
 
+var _drops: Node2D = null   # runtime container for ResourceDrop nodes
+
 func _ready() -> void:
 	if not GameManager.player_corporation:
 		GameManager.start_game("Debug Corp")
 
-	# ── Mine generation ───────────────────────────────────────────────────────
+	# ── Mine generation (one mine = one parcel) ───────────────────────────────
 	var parcels: Array[ParcelData] = GameManager.player_corporation.owned_parcels
 	if parcels.is_empty():
+		# Debug fallback: pick the first non-public parcel of the day
 		if GameManager.current_parcels.is_empty():
 			GameManager.current_parcels = ParcelGenerator.generate_parcels(1)
-		parcels = GameManager.current_parcels.slice(0, 3)
+		var debug_parcel: ParcelData = GameManager.current_parcels[0]
+		for p in GameManager.current_parcels:
+			if not p.is_public:
+				debug_parcel = p
+				break
+		var single: Array[ParcelData] = [debug_parcel]
+		parcels = single
 
 	# ── Configure generator from markers ─────────────────────────────────────
 	MineGenerator.surface_height = int(mine_start.position.y / TILE_SIZE)
@@ -54,8 +65,14 @@ func _ready() -> void:
 	var inventory: Node = player.get_node("InventoryManager")
 	mining.tile_layer = mine_tiles
 
+	# ── Drops container (rendered below the darkness Overlay) ─────────────────
+	_drops = Node2D.new()
+	_drops.name = "Drops"
+	add_child(_drops)
+	move_child(_drops, overlay.get_index())
+
 	# ── Signal wiring ─────────────────────────────────────────────────────────
-	mining.resource_mined.connect(inventory.try_add)
+	mining.drop_spawned.connect(_on_drop_spawned)
 	mining.tile_broken.connect(LightManager.update_around)
 	mining.mine_target_changed.connect(overlay._on_mine_target_changed)
 
@@ -70,11 +87,19 @@ func _ready() -> void:
 
 # ─────────────────────────────────────────────────────────────────────────────
 
+# ─────────────────────────────────────────────────────────────────────────────
+
+func _on_drop_spawned(resource: String, amount: int, world_pos: Vector2) -> void:
+	var drop: ResourceDrop = DROP_SCENE.instantiate()
+	_drops.add_child(drop)
+	drop.global_position = world_pos
+	drop.setup(resource, amount, player, player.get_node("InventoryManager"))
+
 func _carve_shaft() -> void:
 	var shaft_left: int = MineGenerator.get_shaft_left()
 	for x in range(shaft_left, shaft_left + MineGenerator.SHAFT_WIDTH):
 		surface_tiles.erase_cell(Vector2i(x, MineGenerator.surface_height - 1))
 
 func _on_day_expired() -> void:
-	GameManager.start_evening_phase()
-	get_tree().change_scene_to_file.call_deferred("res://scenes/UI/BiddingUI.tscn")
+	# Fin de la mine → phase du soir (vente, stockage, R&D)
+	get_tree().change_scene_to_file.call_deferred("res://scenes/UI/EveningUI.tscn")

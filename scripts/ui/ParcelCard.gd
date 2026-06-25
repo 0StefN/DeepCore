@@ -22,6 +22,7 @@ signal parcel_selected(parcel: ParcelData)
 
 var parcel_data: ParcelData = null
 var _interactable: bool = true
+var _bg_color: Color = Color.GRAY
 
 @onready var type_badge:     Label     = $VBoxContainer/TypeBadge
 @onready var depth_icon:     Label     = $VBoxContainer/DepthRow/DepthIcon
@@ -71,6 +72,7 @@ func _refresh() -> void:
 	var bg_color: Color = SOIL_BG_COLORS.get(parcel_data.soil_type, Color.GRAY)
 	# Légère variation aléatoire pour un aspect moins uniforme
 	bg_color = bg_color.lightened(randf_range(-0.05, 0.05))
+	_bg_color = bg_color
 	add_theme_stylebox_override("panel", _make_stylebox(bg_color))
 
 	# Badge de type spécial
@@ -152,20 +154,51 @@ func _on_mouse_exited() -> void:
 	if _interactable:
 		modulate = Color.WHITE
 
+# ─── État d'enchère en temps réel ──────────────────────────────────────────
+
+func set_auction_state(current_bid: int, holder_id: int, holder_color: Color, is_my_target: bool) -> void:
+	if parcel_data and parcel_data.is_public:
+		bid_label.text     = "Filet de sécurité"
+		bid_label.modulate = Color(0.7, 0.9, 0.7)
+		_apply_border(Color(0.4, 0.5, 0.4), 2)
+		return
+
+	var border: Color
+	if holder_id == -1:
+		bid_label.text     = "Libre — %d$" % current_bid
+		bid_label.modulate = Color(0.82, 0.82, 0.82)
+		border = Color(0.4, 0.4, 0.4)
+	elif holder_id == 0:
+		bid_label.text     = "TOI — %d$" % current_bid
+		bid_label.modulate = Color.CYAN
+		border = Color.CYAN
+	else:
+		bid_label.text     = "%d$" % current_bid
+		bid_label.modulate = holder_color
+		border = holder_color
+
+	_apply_border(border, 4 if is_my_target else 2)
+
+func _apply_border(border_col: Color, border_w: int) -> void:
+	add_theme_stylebox_override("panel", _make_stylebox_full(_bg_color, border_col, border_w))
+
 # ─── Helper StyleBox ───────────────────────────────────────────────────────
 
 func _make_stylebox(color: Color) -> StyleBoxFlat:
+	return _make_stylebox_full(color, color.lightened(0.25), 2)
+
+func _make_stylebox_full(bg: Color, border_col: Color, border_w: int) -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
-	sb.bg_color             = color
+	sb.bg_color             = bg
 	sb.corner_radius_top_left     = 6
 	sb.corner_radius_top_right    = 6
 	sb.corner_radius_bottom_left  = 6
 	sb.corner_radius_bottom_right = 6
-	sb.border_width_left   = 2
-	sb.border_width_right  = 2
-	sb.border_width_top    = 2
-	sb.border_width_bottom = 2
-	sb.border_color        = color.lightened(0.25)
+	sb.border_width_left   = border_w
+	sb.border_width_right  = border_w
+	sb.border_width_top    = border_w
+	sb.border_width_bottom = border_w
+	sb.border_color        = border_col
 	sb.content_margin_left   = 8.0
 	sb.content_margin_right  = 8.0
 	sb.content_margin_top    = 8.0

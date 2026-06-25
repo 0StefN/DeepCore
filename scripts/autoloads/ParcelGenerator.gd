@@ -6,8 +6,9 @@ extends Node
 #  La difficulté et la richesse évoluent avec le numéro de jour.
 # ─────────────────────────────────────────────────────────────────────────────
 
-const GRID_WIDTH: int  = 4
-const GRID_HEIGHT: int = 3
+const GRID_COLUMNS: int = 4
+# Nombre de parcelles compétitives = nb de compagnies + marge de choix.
+const EXTRA_PARCELS: int = 3
 
 # Prix de base par type de sol
 const SOIL_BASE_PRICE: Dictionary = {
@@ -32,15 +33,17 @@ func generate_parcels(day: int) -> Array[ParcelData]:
 	var parcels: Array[ParcelData] = []
 	var id_counter: int = 0
 
-	# 1 parcelle publique gratuite (mauvaise qualité, toujours disponible)
+	# 1 parcelle publique gratuite (filet de sécurité, toujours disponible)
 	parcels.append(_make_public_parcel(id_counter))
 	id_counter += 1
 
-	# Grille principale
-	for y in GRID_HEIGHT:
-		for x in GRID_WIDTH:
-			parcels.append(_make_parcel(id_counter, Vector2i(x, y), day))
-			id_counter += 1
+	# Parcelles compétitives : une par compagnie + quelques extras
+	var num_corps: int = GameManager.get_all_corporations().size()
+	var count: int = num_corps + EXTRA_PARCELS
+	for i in count:
+		var pos := Vector2i(i % GRID_COLUMNS, i / GRID_COLUMNS)
+		parcels.append(_make_parcel(id_counter, pos, day))
+		id_counter += 1
 
 	return parcels
 
@@ -102,7 +105,7 @@ func _make_public_parcel(id: int) -> ParcelData:
 
 func _pick_depth(pos: Vector2i, day: int) -> int:
 	# La droite de la grille (x élevé) tend à être plus profonde
-	var x_bias: float = float(pos.x) / float(GRID_WIDTH)
+	var x_bias: float = float(pos.x) / float(GRID_COLUMNS)
 
 	# Les jours avancés offrent plus de parcelles profondes
 	var day_bias: float = minf(float(day) * 0.015, 0.3)
@@ -142,9 +145,8 @@ func _pick_type(day: int) -> ParcelData.ParcelType:
 		return ParcelData.ParcelType.NORMAL
 
 	var roll := randf()
-	if roll < 0.35:   return ParcelData.ParcelType.MYSTERY
-	elif roll < 0.58: return ParcelData.ParcelType.UNSTABLE
-	elif roll < 0.78: return ParcelData.ParcelType.CONTESTED
+	if roll < 0.40:   return ParcelData.ParcelType.MYSTERY
+	elif roll < 0.72: return ParcelData.ParcelType.UNSTABLE
 	else:             return ParcelData.ParcelType.RESERVED
 
 func _pick_hint(depth: int, ptype: ParcelData.ParcelType) -> ParcelData.ResourceHint:

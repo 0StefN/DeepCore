@@ -6,7 +6,7 @@ extends Node
 #  Started by World.gd after scene setup.
 # ─────────────────────────────────────────────────────────────────────────────
 
-const DEFAULT_DURATION: float = 180.0  # 3 minutes
+const DEFAULT_DURATION: float = 15.0  # 3 minutes
 
 var time_remaining: float = DEFAULT_DURATION
 var is_running:     bool  = false

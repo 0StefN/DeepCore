@@ -24,6 +24,10 @@ enum Category {
 @export var unlocks_parcel_type: String = ""   # Si non vide, débloque les parcelles RESERVED de ce type
 @export var max_level: int = 1                 # Permet la recherche à plusieurs niveaux
 
+# Disposition dans l'arbre (grille) et état "à venir"
+@export var tree_pos: Vector2i = Vector2i.ZERO  # Colonne, ligne dans l'arbre
+@export var coming_soon: bool = false           # Visible mais pas encore achetable
+
 # Effets — interprétés par ResearchManager
 @export var effect_key: String = ""    # Ex: "mining_speed", "carry_capacity"
 @export var effect_value: float = 0.0  # Ex: 0.2 = +20%

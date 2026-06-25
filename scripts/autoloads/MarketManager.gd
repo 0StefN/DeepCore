@@ -78,6 +78,17 @@ func sell_resources(inventory: Dictionary) -> int:
 		total += amount * get_price(resource)
 	return total
 
+# Prix de vente effectif pour une corporation, bonus de traitement inclus
+# (Fonderie → fer, Raffinerie → or/gemmes).
+func get_sell_price(resource: String, corp: CorporationData) -> int:
+	var price: float = float(get_price(resource))
+	var bonus: float = 0.0
+	if resource == "iron":
+		bonus = ResearchManager.get_iron_value_bonus(corp)
+	elif resource == "gold" or resource == "gem":
+		bonus = ResearchManager.get_precious_value_bonus(corp)
+	return int(price * (1.0 + bonus))
+
 # ─── Avancée journalière ──────────────────────────────────────────────────────
 
 # Appelé en fin de phase Soir. sold_all = ressources vendues par TOUTES les corps ce jour.

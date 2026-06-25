@@ -1,0 +1,98 @@
+[gd_scene format=3 uid="uid://cev0ui0scn01x"]
+
+[ext_resource type="Script" uid="uid://bev0ui0scr01x" path="res://scripts/ui/EveningUI.gd" id="1_ev"]
+
+[node name="EveningUi" type="Control" unique_id=434706067]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_ev")
+
+[node name="TopBar" type="PanelContainer" parent="." unique_id=539869324]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 10.0
+offset_top = 8.0
+offset_right = -10.0
+offset_bottom = 50.0
+
+[node name="TopRow" type="HBoxContainer" parent="TopBar" unique_id=421926787]
+layout_mode = 2
+theme_override_constants/separation = 28
+
+[node name="DayLabel" type="Label" parent="TopBar/TopRow" unique_id=1249103213]
+layout_mode = 2
+text = "Soir"
+
+[node name="MoneyLabel" type="Label" parent="TopBar/TopRow" unique_id=1445377893]
+layout_mode = 2
+text = "Argent"
+
+[node name="RentLabel" type="Label" parent="TopBar/TopRow" unique_id=1658733743]
+layout_mode = 2
+text = "Loyer"
+
+[node name="Tabs" type="TabContainer" parent="." unique_id=524760530]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = 54.0
+offset_right = -10.0
+offset_bottom = -62.0
+current_tab = 1
+
+[node name="MarketTab" type="ScrollContainer" parent="Tabs" unique_id=1604845919]
+visible = false
+layout_mode = 2
+horizontal_scroll_mode = 0
+metadata/_tab_index = 0
+
+[node name="MarketMargin" type="MarginContainer" parent="Tabs/MarketTab" unique_id=19187299]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 12
+
+[node name="MarketContent" type="VBoxContainer" parent="Tabs/MarketTab/MarketMargin" unique_id=1836630056]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 12
+
+[node name="UpgradesTab" type="ScrollContainer" parent="Tabs" unique_id=1257364254]
+layout_mode = 2
+metadata/_tab_index = 1
+
+[node name="TreeCanvas" type="Control" parent="Tabs/UpgradesTab" unique_id=45370518]
+layout_mode = 2
+
+[node name="BottomBar" type="PanelContainer" parent="." unique_id=1028492227]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = -56.0
+offset_right = -10.0
+offset_bottom = -8.0
+
+[node name="BottomRow" type="HBoxContainer" parent="BottomBar" unique_id=1565470918]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="HelpLabel" type="Label" parent="BottomBar/BottomRow" unique_id=27399914]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="NextDayButton" type="Button" parent="BottomBar/BottomRow" unique_id=2018604638]
+custom_minimum_size = Vector2(260, 0)
+layout_mode = 2
+text = "Lancer la journée suivante"

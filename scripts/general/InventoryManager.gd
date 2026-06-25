@@ -27,7 +27,16 @@ signal resource_deposited(resource: String, amount: int)   # fired per slot on d
 # ─────────────────────────────────────────────────────────────────────────────
 
 func _ready() -> void:
+	_apply_research_bonuses()
 	_init_slots()
+
+# Applique les bonus de recherche (Sac Renforcé → piles, Cases Supplémentaires → cases).
+func _apply_research_bonuses() -> void:
+	var corp: CorporationData = GameManager.player_corporation
+	if corp == null:
+		return
+	slot_count = DEFAULT_SLOT_COUNT + int(ResearchManager.get_effect("slot_bonus", corp))
+	stack_size = DEFAULT_STACK_SIZE + int(ResearchManager.get_effect("stack_bonus", corp))
 
 func _init_slots() -> void:
 	slots.clear()

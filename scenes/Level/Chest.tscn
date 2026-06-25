@@ -18,6 +18,7 @@ scale = Vector2(0.08332522, 0.08332522)
 texture = ExtResource("1_psq8o")
 
 [node name="InterractionPrompt" type="Label" parent="." unique_id=1694532372]
+visible = false
 offset_left = -64.0
 offset_top = -46.0
 offset_right = 73.0

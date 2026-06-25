@@ -89,7 +89,7 @@ func start_new_day() -> void:
 
 	# Lancer la phase d'enchères
 	_change_phase(GamePhase.BIDDING)
-	BiddingManager.start_bidding(current_parcels)
+	BiddingManager.start_auction(current_parcels)
 	day_started.emit(current_day)
 
 func start_mining_phase() -> void:
@@ -110,6 +110,60 @@ func end_evening_phase(sold_resources: Dictionary) -> void:
 		return
 
 	start_new_day()
+
+# Clôture du soir, pilotée par EveningUI quand le joueur lance la journée suivante.
+# `player_sold` = quantités RÉELLEMENT vendues par le joueur ce soir (coffre + stockage).
+func close_evening(player_sold: Dictionary) -> void:
+	_change_phase(GamePhase.EVENING)
+
+	# Loyer du stockage loué par le joueur (l'UI a déjà vérifié qu'il peut payer)
+	player_corporation.spend(player_corporation.storage_rent())
+
+	# Stub : les IA récoltent et vendent leur parcelle → gagnent + alimentent le marché
+	var ai_sold: Dictionary = _simulate_ai_evening()
+
+	# Offre totale du jour = ventes joueur + ventes IA
+	var sold_all: Dictionary = {}
+	for r in MarketManager.BASE_PRICES:
+		sold_all[r] = int(player_sold.get(r, 0)) + int(ai_sold.get(r, 0))
+
+	end_evening_phase(sold_all)
+
+# Stub de revenu IA : chaque IA "mine" sa parcelle (estimé depuis profondeur + indice),
+# vend tout au marché et encaisse. Retourne les quantités vendues par les IA.
+func _simulate_ai_evening() -> Dictionary:
+	var ai_sold: Dictionary = {}
+	for r in MarketManager.BASE_PRICES:
+		ai_sold[r] = 0
+
+	for corp in ai_corporations:
+		if corp.owned_parcels.is_empty():
+			continue
+		var haul: Dictionary = _estimate_ai_haul(corp.owned_parcels[0])
+		var earned: int = 0
+		for res in haul:
+			var qty: int = haul[res]
+			if qty <= 0:
+				continue
+			earned += qty * MarketManager.get_price(res)
+			ai_sold[res] += qty
+		corp.earn(earned)
+	return ai_sold
+
+func _estimate_ai_haul(parcel: ParcelData) -> Dictionary:
+	var tier: int = parcel.depth_tier
+	var haul: Dictionary = { "coal": 0, "iron": 0, "gold": 0, "gem": 0, "crystal": 0 }
+	# Base de charbon, croissante avec la profondeur
+	haul["coal"] = 18 + 10 * tier + randi() % 10
+	# Ressource suggérée par l'indice de la parcelle
+	var q: int = 8 + 6 * tier + randi() % 8
+	match parcel.resource_hint:
+		ParcelData.ResourceHint.IRON:    haul["iron"]    += q
+		ParcelData.ResourceHint.GOLD:    haul["gold"]    += maxi(2, q / 3)
+		ParcelData.ResourceHint.GEM:     haul["gem"]     += maxi(1, q / 4)
+		ParcelData.ResourceHint.CRYSTAL: haul["crystal"] += maxi(1, q / 5)
+		ParcelData.ResourceHint.COAL:    haul["coal"]    += q
+	return haul
 
 func _change_phase(new_phase: GamePhase) -> void:
 	current_phase = new_phase

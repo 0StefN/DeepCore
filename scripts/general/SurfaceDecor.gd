@@ -18,7 +18,7 @@ func setup() -> void:
 	_chest_pos     = MineGenerator.get_chest_world_pos(TILE_SIZE)
 	_shaft_left_px = float(MineGenerator.get_shaft_left() * TILE_SIZE)
 	_shaft_right_px = _shaft_left_px + float(MineGenerator.SHAFT_WIDTH * TILE_SIZE)
-	_floor_y_px    = float((MineGenerator.SURFACE_HEIGHT - 1) * TILE_SIZE)
+	_floor_y_px    = float((MineGenerator.surface_height - 1) * TILE_SIZE)
 	queue_redraw()
 
 func _draw() -> void:

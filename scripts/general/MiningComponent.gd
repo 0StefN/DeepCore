@@ -7,7 +7,7 @@ extends Node
 #  Communicates via signals — no direct references to siblings.
 #
 #  Wiring (done in World.gd):
-#    resource_mined  → InventoryManager.try_add()
+#    drop_spawned    → World._on_drop_spawned() (instantiates a ResourceDrop)
 #    tile_broken     → LightManager.update_around()
 #    mine_target_changed → Overlay._on_mine_target_changed()
 # ─────────────────────────────────────────────────────────────────────────────
@@ -25,7 +25,9 @@ var _body: CharacterBody2D = null
 
 signal mine_target_changed(tile_pos: Vector2i, progress: float)
 signal tile_broken(tile_pos: Vector2i)
-signal resource_mined(resource: String)
+# Émis quand un bloc de ressource est cassé. La quantité dépend de la couche
+# géologique (rendement Coal LLC). Le câblage (instanciation du drop) est dans World.gd.
+signal drop_spawned(resource: String, amount: int, world_pos: Vector2)
 
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -40,12 +42,6 @@ func _process(delta: float) -> void:
 # ─────────────────────────────────────────────────────────────────────────────
 
 func _handle_mining(delta: float) -> void:
-	# Stop mining if bag is full
-	var inventory: Node = get_parent().get_node("InventoryManager")
-	if inventory.is_full():
-		_reset()
-		return
-
 	var hovered:     Vector2i = get_hovered_tile()
 	var player_tile: Vector2i = _get_player_tile()
 
@@ -85,10 +81,18 @@ func _reset() -> void:
 
 func _break(tile_pos: Vector2i) -> void:
 	var resource: String = MineGenerator.get_resource(tile_pos)
+	var amount:   int    = MineGenerator.get_yield(tile_pos)
+
 	if tile_layer:
 		MineGenerator.remove_tile(tile_pos, tile_layer)
-	if resource != "":
-		resource_mined.emit(resource)
+
+	if resource != "" and amount > 0:
+		var center := Vector2(
+			float(tile_pos.x * TILE_SIZE) + TILE_SIZE * 0.5,
+			float(tile_pos.y * TILE_SIZE) + TILE_SIZE * 0.5
+		)
+		drop_spawned.emit(resource, amount, center)
+
 	tile_broken.emit(tile_pos)
 	_reset()
 
