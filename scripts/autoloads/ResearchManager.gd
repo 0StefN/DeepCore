@@ -24,15 +24,15 @@ func initialize() -> void:
 func _register_all_nodes() -> void:
 
 	# ── MINING (ligne 0) ──────────────────────────────────────────────────────
-	_add("pickaxe_upgrade", "Pioche Améliorée", "Mine plus vite (+25% par niveau, jusqu'au niveau 10).",
-		ResearchNode.Category.MINING, 120, [],
-		"mining_speed", 0.25, 0.25, 10, Vector2i(0, 0))
+	_add("pickaxe_upgrade", "Pioche Améliorée", "Mine plus vite (+50% au niveau 1, puis +30% par niveau, jusqu'au niveau 10).",
+		ResearchNode.Category.MINING, 100, [],
+		"mining_speed", 0.50, 0.30, 10, Vector2i(0, 0))
 	_add("drill_basic", "Foreuse Basique", "Débloque les parcelles Réservées (profondeur 1).",
 		ResearchNode.Category.MINING, 300, ["pickaxe_upgrade"],
 		"unlock_reserved_1", 1.0, 0.0, 1, Vector2i(1, 0))
-	_add("drill_advanced", "Foreuse Avancée", "Débloque les parcelles Réservées (profondeur 2). +15% vitesse.",
+	_add("drill_advanced", "Foreuse Avancée", "Débloque les parcelles Réservées (profondeur 2). +15% vitesse de minage.",
 		ResearchNode.Category.MINING, 550, ["drill_basic"],
-		"unlock_reserved_2", 1.0, 0.0, 1, Vector2i(2, 0))
+		"mining_speed", 0.15, 0.0, 1, Vector2i(2, 0))
 	_add("drill_volcanic", "Foreuse Volcanique", "Débloque les parcelles Réservées (profondeur 3).",
 		ResearchNode.Category.MINING, 900, ["drill_advanced"],
 		"unlock_reserved_3", 1.0, 0.0, 1, Vector2i(3, 0))
@@ -59,12 +59,12 @@ func _register_all_nodes() -> void:
 		ResearchNode.Category.LOGISTICS, 300, [],
 		"light_radius", 2.0, 1.0, 3, Vector2i(3, 2))
 
-	_add("boots", "Bottes Renforcées", "Augmente la vitesse de déplacement (+15% par niveau).",
-		ResearchNode.Category.LOGISTICS, 220, [],
-		"move_speed", 0.15, 0.15, 3, Vector2i(0, 3))
-	_add("jump_upgrade", "Saut Amélioré", "Saute plus haut (+15% par niveau).",
+	_add("boots", "Bottes Renforcées", "Augmente la vitesse de déplacement (+25% au niveau 1, +20% par niveau suivant).",
+		ResearchNode.Category.LOGISTICS, 200, [],
+		"move_speed", 0.25, 0.20, 3, Vector2i(0, 3))
+	_add("jump_upgrade", "Saut Amélioré", "Saut plus vif : atteint sa hauteur plus vite (+25% au niveau 1, +20% au niveau 2).",
 		ResearchNode.Category.LOGISTICS, 240, ["boots"],
-		"jump_power", 0.15, 0.15, 2, Vector2i(1, 3))
+		"jump_power", 0.25, 0.20, 2, Vector2i(1, 3))
 	_add("jetpack", "Jetpack", "Permet de voler dans la mine en maintenant Saut.",
 		ResearchNode.Category.LOGISTICS, 900, ["jump_upgrade"],
 		"jetpack_enabled", 1.0, 0.0, 1, Vector2i(2, 3))
@@ -100,13 +100,11 @@ func _register_all_nodes() -> void:
 		ResearchNode.Category.PROCESSING, 600, ["smelter"],
 		"precious_value_bonus", 0.40, 0.20, 2, Vector2i(1, 7))
 
-	# ── RENSEIGNEMENT (ligne 8) — à venir (Bloc 2) ────────────────────────────
-	_add("survey_basic", "Sondage Géologique", "Révèle la quantité approximative des ressources d'une parcelle.",
-		ResearchNode.Category.INTELLIGENCE, 300, [],
-		"survey_accuracy", 0.5, 0.25, 2, Vector2i(0, 8))
+	# ── RENSEIGNEMENT (ligne 8) ───────────────────────────────────────────────
+	# (Le « Sondage Géologique » a été remplacé par les bouquets d'intel du Soir.)
 	_add("spy_network", "Réseau d'Espions", "Révèle les mises des corporations rivales pendant l'enchère.",
-		ResearchNode.Category.INTELLIGENCE, 700, ["survey_basic"],
-		"spy_reveal_bids", 1.0, 0.0, 1, Vector2i(1, 8))
+		ResearchNode.Category.INTELLIGENCE, 700, [],
+		"spy_reveal_bids", 1.0, 0.0, 1, Vector2i(0, 8))
 
 # Helper pour enregistrer un nœud
 func _add(

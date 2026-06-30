@@ -39,6 +39,15 @@ var research: Dictionary = {}
 # ─── Consommables (torches, dynamite…) — persistent, achetés au shop du soir ──
 var consumables: Dictionary = { "torch": 0, "dynamite": 0 }
 
+# Garantit une entrée (=0) pour CHAQUE minerai d'OreDB dans l'inventaire et le
+# stockage, sinon add_resource()/add_to_storage() rejetteraient les nouveaux minerais.
+func _init() -> void:
+	for id in OreDB.get_ids():
+		if id not in inventory:
+			inventory[id] = 0
+		if id not in storage:
+			storage[id] = 0
+
 func add_consumable(id: String, n: int = 1) -> void:
 	consumables[id] = int(consumables.get(id, 0)) + n
 

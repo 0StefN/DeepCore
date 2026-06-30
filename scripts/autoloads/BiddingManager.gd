@@ -173,8 +173,8 @@ func _hint_price(p: ParcelData) -> int:
 		ParcelData.ResourceHint.COAL:    return MarketManager.get_price("coal")
 		ParcelData.ResourceHint.IRON:    return MarketManager.get_price("iron")
 		ParcelData.ResourceHint.GOLD:    return MarketManager.get_price("gold")
-		ParcelData.ResourceHint.GEM:     return MarketManager.get_price("gem")
-		ParcelData.ResourceHint.CRYSTAL: return MarketManager.get_price("crystal")
+		ParcelData.ResourceHint.GEM:     return MarketManager.get_price("sapphire")
+		ParcelData.ResourceHint.CRYSTAL: return MarketManager.get_price("diamond")
 		ParcelData.ResourceHint.NONE:    return int(float(MarketManager.get_price("coal")) * 0.6)
 	# UNKNOWN (Mystère) : espérance moyenne du marché — un pari
 	var all: Dictionary = MarketManager.get_all_prices()

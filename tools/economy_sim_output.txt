@@ -1,0 +1,38 @@
+==============================================================================
+VALEUR MOYENNE D'UNE TUILE DE MINERAI PAR COUCHE (pondérée par rareté)
+==============================================================================
+Couche | $/tuile moy | $/s moy | meilleur $/s ici | tier dominant ?
+   1   |        13   |      8  | Quartz      p1  | oui
+   2   |        44   |     23  | Topaze      p2  | oui
+   3   |        82   |     42  | Topaze      p2  | oui
+   4   |       284   |     98  | Émeraude    p4  | oui
+   5   |       728   |    201  | Émeraude    p4  | oui
+   6   |      1646   |    360  | Rubis       p5  | oui
+   7   |      3243   |    607  | Platine     p6  | oui
+   8   |      6443   |   1009  | Étherium    p8  | oui
+
+Progression $/s monotone croissante : OUI ✓
+
+==============================================================================
+DÉTAIL : $/s de chaque ore à son palier de spawn (rendement 1)
+==============================================================================
+  Charbon     p1 :      4 $/s  (prix     6, 1.4s)
+  Cuivre      p1 :      8 $/s  (prix    12, 1.5s)
+  Fer         p1 :     10 $/s  (prix    16, 1.6s)
+  Quartz      p1 :     14 $/s  (prix    24, 1.7s)
+  Étain       p2 :     17 $/s  (prix    34, 2.0s)
+  Lapis       p2 :     26 $/s  (prix    52, 2.0s)
+  Argent      p2 :     29 $/s  (prix    60, 2.1s)
+  Améthyste   p2 :     34 $/s  (prix    74, 2.2s)
+  Topaze      p2 :     41 $/s  (prix    90, 2.2s)
+  Or          p4 :    153 $/s  (prix   520, 3.4s)
+  Émeraude    p4 :    200 $/s  (prix   720, 3.6s)
+  Saphir      p5 :    261 $/s  (prix  1150, 4.4s)
+  Rubis       p5 :    315 $/s  (prix  1450, 4.6s)
+  Obsidienne  p6 :    343 $/s  (prix  1850, 5.4s)
+  Diamant     p6 :    431 $/s  (prix  2500, 5.8s)
+  Platine     p6 :    500 $/s  (prix  3000, 6.0s)
+  Orichalque  p7 :    611 $/s  (prix  4400, 7.2s)
+  Adamantite  p7 :    737 $/s  (prix  5600, 7.6s)
+  Mythril     p8 :   1221 $/s  (prix 10500, 8.6s)
+  Étherium    p8 :   1556 $/s  (prix 14000, 9.0s)

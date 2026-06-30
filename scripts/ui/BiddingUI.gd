@@ -36,12 +36,6 @@ var selected_parcel: ParcelData = null
 var parcel_cards: Dictionary = {}     # parcel_id -> ParcelCard
 var _validating: bool = false
 var _flash_active: bool = false
-var _survey_label: Label = null       # créé à la volée (Sondage Géologique)
-
-const RES_NAMES: Dictionary = {
-	"coal": "Charbon", "iron": "Fer", "gold": "Or",
-	"gem": "Gemmes", "crystal": "Cristaux",
-}
 
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -118,15 +112,22 @@ func _refresh_bid_panel() -> void:
 	var pid: int = selected_parcel.parcel_id
 
 	parcel_title.text = selected_parcel.get_display_name()
-	_set_info_label("SolValue",        selected_parcel.get_soil_display())
 	_set_info_label("ProfondeurValue", selected_parcel.get_depth_display())
-	_set_info_label("RessourceValue",  selected_parcel.get_resource_display())
 	_set_info_label("PrixValue",       "%d$" % selected_parcel.base_price)
+	if selected_parcel.parcel_type == ParcelData.ParcelType.MYSTERY:
+		_set_info_label("SolValue",       "???")
+		_set_info_label("RessourceValue", "???")
+	elif selected_parcel.intel_revealed:
+		_set_info_label("SolValue",       selected_parcel.get_soil_display())
+		_set_info_label("RessourceValue", "%s · %s" % [
+			selected_parcel.get_richness_display(), OreDB.get_display(selected_parcel.rarest_ore)])
+	else:
+		_set_info_label("SolValue",       "🔒")
+		_set_info_label("RessourceValue", "🔒 Intel non achetée")
 
 	type_warning.text    = _get_type_warning(selected_parcel)
 	type_warning.visible = type_warning.text != ""
 
-	_refresh_survey(selected_parcel)
 
 	var cost: int = BiddingManager.get_cost_to_take(pid)
 	var money: int = GameManager.player_corporation.money
@@ -157,45 +158,6 @@ func _set_info_label(node_name: String, value: String) -> void:
 	if label:
 		label.text = value
 
-# ─── Sondage Géologique ────────────────────────────────────────────────────────
-
-func _ensure_survey_label() -> void:
-	if _survey_label and is_instance_valid(_survey_label):
-		return
-	_survey_label = Label.new()
-	_survey_label.name          = "SurveyLabel"
-	_survey_label.autowrap_mode = TextServer.AUTOWRAP_WORD
-	_survey_label.modulate      = Color(0.70, 0.90, 1.0)
-	var vbox: Node = type_warning.get_parent()
-	vbox.add_child(_survey_label)
-	vbox.move_child(_survey_label, type_warning.get_index() + 1)
-
-# Affiche une estimation EN FOURCHETTE des ressources réelles de la parcelle.
-# Largeur de la fourchette = (1 - survey_accuracy) : plus la recherche est haute,
-# plus l'estimation est serrée. La vraie valeur est toujours dans la fourchette.
-func _refresh_survey(parcel: ParcelData) -> void:
-	_ensure_survey_label()
-	var corp: CorporationData = GameManager.player_corporation
-	var accuracy: float = ResearchManager.get_effect("survey_accuracy", corp)
-	if accuracy <= 0.0:
-		_survey_label.visible = false
-		return
-
-	var hw: float = 1.0 - accuracy
-	var lines: Array[String] = []
-	for res in ["coal", "iron", "gold", "gem", "crystal"]:
-		var amount: int = int(parcel.actual_resources.get(res, 0))
-		if amount <= 0:
-			continue
-		var lo: int = maxi(0, int(floor(float(amount) * (1.0 - hw) / 5.0)) * 5)
-		var hi: int = int(ceil(float(amount) * (1.0 + hw) / 5.0)) * 5
-		lines.append("%s ~%d-%d" % [RES_NAMES.get(res, res), lo, hi])
-
-	if lines.is_empty():
-		lines.append("rien de notable détecté")
-	_survey_label.text    = "🔬 Sondage — Richesse : %s\n%s" % [
-		parcel.get_richness_display(), "   •   ".join(lines)]
-	_survey_label.visible = true
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  ACTIONS DU JOUEUR

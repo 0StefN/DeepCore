@@ -36,14 +36,7 @@ var _player:    Node2D  = null
 var _inventory: Node    = null
 var _no_pickup_time: float = 0.0   # tant que > 0, l'aimant ne peut pas reprendre l'objet
 
-# ─── Placeholder colours (replace with real art later) ────────────────────────
-const COLORS: Dictionary = {
-	"coal":    Color(0.18, 0.18, 0.20),
-	"iron":    Color(0.72, 0.74, 0.78),
-	"gold":    Color(1.00, 0.82, 0.18),
-	"gem":     Color(0.30, 0.85, 0.95),
-	"crystal": Color(0.85, 0.40, 0.95),
-}
+# ─── Placeholder colours : centralisées dans OreDB (voir _draw) ──────────────
 
 # ─── Custom drop art (optional) ───────────────────────────────────────────────
 # To give a resource its own sprite instead of the coloured placeholder:
@@ -189,7 +182,7 @@ func _do_physics(delta: float) -> void:
 func _draw() -> void:
 	# Placeholder square only when no custom sprite is configured
 	if _sprite == null:
-		var col: Color = COLORS.get(resource, Color.WHITE)
+		var col: Color = OreDB.get_color(resource)
 		var s: float = 11.0
 		var r := Rect2(-s * 0.5, -s * 0.5, s, s)
 		draw_rect(r, col, true)

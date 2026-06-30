@@ -84,11 +84,8 @@ func _refresh() -> void:
 	depth_icon.text  = parcel_data.get_depth_icon()
 	depth_label.text = parcel_data.get_depth_display()
 
-	# Sol
-	soil_label.text = parcel_data.get_soil_display()
-
-	# Ressource
-	resource_icon.text = RESOURCE_ICONS.get(parcel_data.resource_hint, "?")
+	# Sol / Ressource → remplacés par l'intel (cachés tant que non révélés)
+	_refresh_intel_display()
 
 	# Prix
 	if parcel_data.base_price == 0:
@@ -107,6 +104,25 @@ func _refresh() -> void:
 
 	modulate      = Color.WHITE
 	_interactable = true
+
+# ─── Affichage de l'intel (richesse + minerai le plus rare) ─────────────────
+
+func _refresh_intel_display() -> void:
+	resource_icon.modulate = Color.WHITE
+	# Mystère : jamais révélable par l'intel
+	if parcel_data.parcel_type == ParcelData.ParcelType.MYSTERY:
+		resource_icon.text = "❓"
+		soil_label.text    = "Mystère"
+		return
+	# Révélée (ou parcelle publique, dont l'info est connue/gratuite)
+	if parcel_data.intel_revealed or parcel_data.is_public:
+		resource_icon.text     = "◆"
+		resource_icon.modulate = OreDB.get_color(parcel_data.rarest_ore)
+		soil_label.text        = "%s · %s" % [
+			parcel_data.get_richness_display(), OreDB.get_display(parcel_data.rarest_ore)]
+	else:
+		resource_icon.text = "🔒"
+		soil_label.text    = "Intel ?"
 
 # ─── Mise du joueur ────────────────────────────────────────────────────────
 

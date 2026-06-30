@@ -2,12 +2,13 @@ extends Node
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  ParcelGenerator.gd  —  Autoload : "ParcelGenerator"
-#  Génère la grille de parcelles pour chaque journée.
-#  La difficulté et la richesse évoluent avec le numéro de jour.
+#  Génère la grille de parcelles de chaque journée.
+#  Profondeur = num_paliers (1 à 8). Pas de plafond de licence (les licences
+#  deviendront des BIOMES). Les minerais présents et le minerai le plus rare sont
+#  pré-tirés (seedés) pour que l'intel de la Phase 2 corresponde à la vraie mine.
 # ─────────────────────────────────────────────────────────────────────────────
 
 const GRID_COLUMNS: int = 4
-# Nombre de parcelles compétitives = nb de compagnies + marge de choix.
 const EXTRA_PARCELS: int = 4
 
 # Prix de base par type de sol
@@ -18,20 +19,20 @@ const SOIL_BASE_PRICE: Dictionary = {
 	ParcelData.SoilType.VOLCANIC:  280,
 }
 
-# Multiplicateur prix selon la profondeur
-const DEPTH_PRICE_MULT: Dictionary = {
-	1: 1.0,
-	2: 1.6,
-	3: 2.5,
+# Bonus de présence des minerais selon la richesse de la parcelle.
+const RICHNESS_PRESENCE_BONUS: Dictionary = {
+	ParcelData.Richness.POOR:   0.00,
+	ParcelData.Richness.MEDIUM: 0.05,
+	ParcelData.Richness.RICH:   0.12,
+	ParcelData.Richness.LOADED: 0.20,
 }
 
-# Multiplicateur de ressources selon la richesse (doit suivre RICHNESS_DENSITY_MULT
-# côté MineGenerator pour que le Sondage reste honnête).
+# Multiplicateur de quantité approximative (actual_resources) selon la richesse.
 const RICHNESS_RESOURCE_MULT: Dictionary = {
-	ParcelData.Richness.POOR:    0.40,
-	ParcelData.Richness.NORMAL:  1.00,
-	ParcelData.Richness.RICH:    1.90,
-	ParcelData.Richness.BONANZA: 3.50,
+	ParcelData.Richness.POOR:   0.40,
+	ParcelData.Richness.MEDIUM: 1.00,
+	ParcelData.Richness.RICH:   1.90,
+	ParcelData.Richness.LOADED: 3.50,
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -42,11 +43,9 @@ func generate_parcels(day: int) -> Array[ParcelData]:
 	var parcels: Array[ParcelData] = []
 	var id_counter: int = 0
 
-	# 1 parcelle publique gratuite (filet de sécurité, toujours disponible)
 	parcels.append(_make_public_parcel(id_counter))
 	id_counter += 1
 
-	# Parcelles compétitives : une par compagnie + quelques extras
 	var num_corps: int = GameManager.get_all_corporations().size()
 	var count: int = num_corps + EXTRA_PARCELS
 	for i in count:
@@ -62,202 +61,170 @@ func generate_parcels(day: int) -> Array[ParcelData]:
 
 func _make_parcel(id: int, pos: Vector2i, day: int) -> ParcelData:
 	var p := ParcelData.new()
-	p.parcel_id      = id
-	p.grid_position  = pos
-	p.depth_tier     = _pick_depth(pos, day)
-	p.soil_type      = _pick_soil(p.depth_tier)
-	p.parcel_type    = _pick_type(day)
-	p.resource_hint  = _pick_hint(p.depth_tier, p.parcel_type)
-	p.richness       = _pick_richness()
+	p.parcel_id        = id
+	p.grid_position    = pos
+	p.generation_seed  = randi() | 1
+	p.num_paliers      = _pick_paliers(pos, day)
+	p.depth_tier       = _paliers_to_tier(p.num_paliers)
+	p.soil_type        = _pick_soil(p.num_paliers)
+	p.parcel_type      = _pick_type(day)
+	p.richness         = _pick_richness()
 
-	# Prix de base
-	var base_price: int   = SOIL_BASE_PRICE[p.soil_type]
-	var depth_mult: float = DEPTH_PRICE_MULT[p.depth_tier]
-	p.base_price = int(base_price * depth_mult)
+	# Pré-tirage des minerais présents (seedé → cohérent avec la mine).
+	p.present_ores     = _roll_present_ores(p)
+	p.rarest_ore       = OreDB.rarest_of(p.present_ores)
+	p.resource_hint    = _hint_from_rarest(p)
+	p.actual_resources = _approx_resources(p)
 
-	# Ajustements de prix selon le type spécial
+	# Prix de base : sol + profondeur (par palier).
+	var base_price: int = SOIL_BASE_PRICE.get(p.soil_type, 110)
+	var depth_mult: float = 1.0 + float(p.num_paliers - 1) * 0.30
+	p.base_price = int(float(base_price) * depth_mult)
+
 	match p.parcel_type:
 		ParcelData.ParcelType.MYSTERY:
-			p.base_price = int(p.base_price * 0.55)  # Moins chère car risquée
+			p.base_price = int(p.base_price * 0.55)
+			p.resource_hint = ParcelData.ResourceHint.UNKNOWN
 		ParcelData.ParcelType.UNSTABLE:
-			p.base_price = int(p.base_price * 0.80)  # Légère réduction
+			p.base_price = int(p.base_price * 0.80)
 		ParcelData.ParcelType.CONTESTED:
-			p.base_price = int(p.base_price * 1.10)  # Légèrement plus chère
+			p.base_price = int(p.base_price * 1.10)
 		ParcelData.ParcelType.RESERVED:
-			p.base_price = int(p.base_price * 1.25)  # Premium
+			p.base_price = int(p.base_price * 1.25)
 			p.required_research = _pick_required_research(p.depth_tier)
 
-	# Ressources réelles (cachées au joueur)
-	p.actual_resources = _generate_resources(p)
-
-	# Chance d'effondrement pour UNSTABLE
 	if p.parcel_type == ParcelData.ParcelType.UNSTABLE:
 		p.collapse_chance = randf_range(0.10, 0.45)
 
 	return p
 
 func _make_public_parcel(id: int) -> ParcelData:
-	# Parcelle "starter" : toujours disponible et bon marché, mais PLUS gratuite
-	# (filet de sécurité payant). Sa richesse varie comme les autres.
 	var p := ParcelData.new()
 	p.parcel_id        = id
 	p.grid_position    = Vector2i(-1, -1)
+	p.generation_seed  = randi() | 1
+	p.num_paliers      = 2
 	p.depth_tier       = 1
 	p.soil_type        = ParcelData.SoilType.CLAY
 	p.parcel_type      = ParcelData.ParcelType.NORMAL
-	p.resource_hint    = ParcelData.ResourceHint.COAL
 	p.base_price       = 50
 	p.is_public        = true
 	p.richness         = _pick_richness()
-	p.actual_resources = _generate_resources(p)
+	p.present_ores     = _roll_present_ores(p)
+	p.rarest_ore       = OreDB.rarest_of(p.present_ores)
+	p.resource_hint    = _hint_from_rarest(p)
+	p.actual_resources = _approx_resources(p)
 	return p
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  PICKERS
 # ─────────────────────────────────────────────────────────────────────────────
 
-func _pick_depth(pos: Vector2i, day: int) -> int:
-	# La droite de la grille (x élevé) tend à être plus profonde
-	var x_bias: float = float(pos.x) / float(GRID_COLUMNS)
+# Profondeur en paliers (1 à 8). La droite de la grille et les jours avancés
+# tendent vers le profond.
+func _pick_paliers(pos: Vector2i, day: int) -> int:
+	var x_bias: float   = float(pos.x) / float(GRID_COLUMNS)
+	var day_bias: float = minf(float(day) * 0.02, 0.45)
+	var deep: float     = clampf(0.10 + x_bias * 0.22 + day_bias, 0.05, 0.80)
 
-	# Les jours avancés offrent plus de parcelles profondes
-	var day_bias: float = minf(float(day) * 0.015, 0.3)
-
-	var deep_chance := clampf(0.08 + x_bias * 0.20 + day_bias, 0.05, 0.55)
-	var mid_chance  := clampf(0.25 + x_bias * 0.10 + day_bias * 0.5, 0.20, 0.50)
-
-	var tier: int = 1
 	var roll := randf()
-	if roll < deep_chance:
-		tier = 3
-	elif roll < deep_chance + mid_chance:
-		tier = 2
+	if roll < deep * 0.35:
+		return randi_range(7, 8)
+	elif roll < deep:
+		return randi_range(5, 6)
+	elif roll < deep + 0.40:
+		return randi_range(3, 4)
+	return randi_range(1, 2)
 
-	# La licence plafonne la profondeur accessible (L1 = tier 1 seulement)
-	return mini(tier, GameManager.license_max_tier())
+func _paliers_to_tier(paliers: int) -> int:
+	if paliers <= 3: return 1
+	if paliers <= 6: return 2
+	return 3
 
-func _pick_soil(depth: int) -> ParcelData.SoilType:
+func _pick_soil(paliers: int) -> ParcelData.SoilType:
 	var roll := randf()
-	match depth:
-		1:
-			if roll < 0.50: return ParcelData.SoilType.CLAY
-			elif roll < 0.85: return ParcelData.SoilType.LIMESTONE
-			else: return ParcelData.SoilType.GRANITE
-		2:
-			if roll < 0.10: return ParcelData.SoilType.CLAY
-			elif roll < 0.50: return ParcelData.SoilType.LIMESTONE
-			elif roll < 0.85: return ParcelData.SoilType.GRANITE
-			else: return ParcelData.SoilType.VOLCANIC
-		3:
-			if roll < 0.30: return ParcelData.SoilType.GRANITE
-			else: return ParcelData.SoilType.VOLCANIC
-	return ParcelData.SoilType.LIMESTONE
+	if paliers <= 2:
+		if roll < 0.55: return ParcelData.SoilType.CLAY
+		elif roll < 0.88: return ParcelData.SoilType.LIMESTONE
+		return ParcelData.SoilType.GRANITE
+	elif paliers <= 5:
+		if roll < 0.15: return ParcelData.SoilType.CLAY
+		elif roll < 0.55: return ParcelData.SoilType.LIMESTONE
+		elif roll < 0.85: return ParcelData.SoilType.GRANITE
+		return ParcelData.SoilType.VOLCANIC
+	if roll < 0.35: return ParcelData.SoilType.GRANITE
+	return ParcelData.SoilType.VOLCANIC
 
 func _pick_type(day: int) -> ParcelData.ParcelType:
-	# Taux de parcelles spéciales augmente légèrement avec les jours
 	var special_chance: float = minf(0.22 + float(day) * 0.008, 0.42)
-
 	if randf() > special_chance:
 		return ParcelData.ParcelType.NORMAL
-
 	var roll := randf()
 	if roll < 0.40:   return ParcelData.ParcelType.MYSTERY
 	elif roll < 0.72: return ParcelData.ParcelType.UNSTABLE
-	else:             return ParcelData.ParcelType.RESERVED
+	return ParcelData.ParcelType.RESERVED
 
-func _pick_hint(depth: int, ptype: ParcelData.ParcelType) -> ParcelData.ResourceHint:
-	if ptype == ParcelData.ParcelType.MYSTERY:
-		return ParcelData.ResourceHint.UNKNOWN  # Masqué
-
-	var roll := randf()
-	match depth:
-		1:
-			if roll < 0.55: return ParcelData.ResourceHint.COAL
-			elif roll < 0.80: return ParcelData.ResourceHint.IRON
-			elif roll < 0.93: return ParcelData.ResourceHint.NONE
-			else: return ParcelData.ResourceHint.GOLD
-		2:
-			if roll < 0.25: return ParcelData.ResourceHint.COAL
-			elif roll < 0.50: return ParcelData.ResourceHint.IRON
-			elif roll < 0.72: return ParcelData.ResourceHint.GOLD
-			elif roll < 0.90: return ParcelData.ResourceHint.GEM
-			else: return ParcelData.ResourceHint.CRYSTAL
-		3:
-			if roll < 0.10: return ParcelData.ResourceHint.IRON
-			elif roll < 0.32: return ParcelData.ResourceHint.GOLD
-			elif roll < 0.62: return ParcelData.ResourceHint.GEM
-			else: return ParcelData.ResourceHint.CRYSTAL
-	return ParcelData.ResourceHint.COAL
-
-func _pick_required_research(depth: int) -> String:
-	match depth:
+func _pick_required_research(tier: int) -> String:
+	match tier:
 		1: return "drill_basic"
 		2: return "drill_advanced"
 		3: return "drill_volcanic"
 	return "drill_basic"
 
-# Richesse de la parcelle (cachée, révélée par le Sondage). Filon très rare.
 func _pick_richness() -> ParcelData.Richness:
 	var roll := randf()
-	if roll < 0.04:   return ParcelData.Richness.BONANZA  #  4 %
+	if roll < 0.04:   return ParcelData.Richness.LOADED   #  4 %
 	elif roll < 0.22: return ParcelData.Richness.RICH     # 18 %
-	elif roll < 0.72: return ParcelData.Richness.NORMAL   # 50 %
+	elif roll < 0.72: return ParcelData.Richness.MEDIUM   # 50 %
 	return ParcelData.Richness.POOR                       # 28 %
 
 # ─────────────────────────────────────────────────────────────────────────────
-#  GÉNÉRATION DES RESSOURCES CACHÉES
+#  PRÉ-TIRAGE DES MINERAIS (seedé)
 # ─────────────────────────────────────────────────────────────────────────────
 
-func _generate_resources(p: ParcelData) -> Dictionary:
-	var base: int
-	match p.depth_tier:
-		1: base = randi_range(15,  45)
-		2: base = randi_range(40,  90)
-		3: base = randi_range(80, 180)
-		_: base = 20
+# Quels minerais sont réellement présents ? Plus la parcelle descend sous le
+# palier de spawn d'un minerai, plus il a de chances d'être là. Fuite jackpot
+# très rare d'un minerai un palier plus profond que la parcelle.
+func _roll_present_ores(p: ParcelData) -> Array[String]:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = p.generation_seed
+	var bonus: float = RICHNESS_PRESENCE_BONUS.get(p.richness, 0.0)
+	var present: Array[String] = []
 
-	# Modificateurs selon le type de parcelle
-	match p.parcel_type:
-		ParcelData.ParcelType.MYSTERY:
-			var roll := randf()
-			if   roll < 0.20: return {}                         # Vide !
-			elif roll < 0.50: base = randi_range(5,  20)       # Pauvre
-			elif roll < 0.80: base = randi_range(50, 110)      # Bon
-			else:             base = randi_range(120, 250)     # Jackpot !
-		ParcelData.ParcelType.UNSTABLE:
-			base = int(base * randf_range(1.6, 2.8))           # Très riche mais risqué
-		ParcelData.ParcelType.RESERVED:
-			base = int(base * randf_range(1.3, 1.8))           # Bonus de ressources
+	for id in OreDB.get_ids():
+		var sp: int = OreDB.get_palier(id)
+		if sp <= p.num_paliers:
+			var depth_into: int = p.num_paliers - sp
+			var chance: float = clampf(0.32 + float(depth_into) * 0.17 + bonus, 0.0, 0.96)
+			if rng.randf() < chance:
+				present.append(id)
+		elif sp == p.num_paliers + 1:
+			# Fuite très rare d'un minerai du palier suivant (jackpot)
+			if rng.randf() < 0.05 + bonus * 0.4:
+				present.append(id)
 
-	# Richesse de la parcelle (Pauvre → Filon) : échelle commune avec la densité de mine
-	base = int(base * RICHNESS_RESOURCE_MULT.get(p.richness, 1.0))
+	if present.is_empty():
+		present.append("coal")
+	return present
 
-	# Résoudre le hint pour les mystères
-	var hint := p.resource_hint
-	if hint == ParcelData.ResourceHint.UNKNOWN:
-		hint = _pick_hint(p.depth_tier, ParcelData.ParcelType.NORMAL)
+# Catégorie grossière (compat BiddingManager / GameManager / ParcelCard).
+func _hint_from_rarest(p: ParcelData) -> ParcelData.ResourceHint:
+	if p.rarest_ore == "":
+		return ParcelData.ResourceHint.NONE
+	var sp: int = OreDB.get_palier(p.rarest_ore)
+	if sp <= 1:   return ParcelData.ResourceHint.COAL
+	elif sp == 2: return ParcelData.ResourceHint.IRON
+	elif sp <= 4: return ParcelData.ResourceHint.GOLD
+	elif sp <= 5: return ParcelData.ResourceHint.GEM
+	return ParcelData.ResourceHint.CRYSTAL
 
-	# Assigner les ressources selon le hint principal
+# Quantités approximatives (legacy actual_resources, panneau d'enchère).
+func _approx_resources(p: ParcelData) -> Dictionary:
+	var mult: float = RICHNESS_RESOURCE_MULT.get(p.richness, 1.0)
 	var res: Dictionary = {}
-	match hint:
-		ParcelData.ResourceHint.COAL:
-			res["coal"] = base
-			if randf() < 0.35: res["iron"] = randi_range(5, 18)
-		ParcelData.ResourceHint.IRON:
-			res["iron"] = base
-			res["coal"] = randi_range(8, 25)
-		ParcelData.ResourceHint.GOLD:
-			res["gold"] = int(base * 0.28)
-			res["iron"] = randi_range(10, 30)
-		ParcelData.ResourceHint.GEM:
-			res["gem"]  = int(base * 0.18)
-			res["iron"] = randi_range(5, 20)
-			if randf() < 0.4: res["gold"] = randi_range(3, 10)
-		ParcelData.ResourceHint.CRYSTAL:
-			res["crystal"] = int(base * 0.12)
-			res["gem"]     = randi_range(5, 15)
-			if randf() < 0.5: res["gold"] = randi_range(5, 18)
-		ParcelData.ResourceHint.NONE:
-			res["coal"] = randi_range(2, 8)  # Toujours un tout petit peu
-
+	for id in p.present_ores:
+		var sp: int = OreDB.get_palier(id)
+		var depth_into: int = maxi(0, p.num_paliers - sp)
+		var qty: int = int(float(randi_range(6, 18) + depth_into * 4) * mult)
+		res[id] = maxi(1, qty)
 	return res

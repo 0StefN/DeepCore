@@ -155,7 +155,7 @@ func _refresh_chest() -> void:
 	var parts: Array[String] = []
 	for res in inv:
 		if inv[res] > 0:
-			var icon: String = RESOURCE_ICONS.get(res, "?")
+			var icon: String = RESOURCE_ICONS.get(res, "◆")
 			parts.append("%s %d" % [icon, inv[res]])
 	chest_label.text = "Chest: " + (", ".join(parts) if not parts.is_empty() else "empty")
 
@@ -326,7 +326,7 @@ func _build_inv_menu() -> void:
 			cl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			cl.vertical_alignment   = VERTICAL_ALIGNMENT_CENTER
 			if filled:
-				cl.text = "%s\n×%d" % [RESOURCE_ICONS.get(slot["resource"], "?"), slot["amount"]]
+				cl.text = "%s\n×%d" % [RESOURCE_ICONS.get(slot["resource"], "◆"), slot["amount"]]
 				cell.gui_input.connect(_on_inv_cell_input.bind(str(slot["resource"])))
 			cell.add_child(cl)
 			grid.add_child(cell)

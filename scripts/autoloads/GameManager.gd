@@ -50,6 +50,7 @@ var current_phase: GamePhase = GamePhase.MAIN_MENU
 var player_corporation: CorporationData
 var ai_corporations: Array[CorporationData] = []
 var current_parcels: Array[ParcelData] = []
+var pending_parcels: Array[ParcelData] = []   # Lot de DEMAIN, généré au Soir (intel)
 
 # ─── Licences & prêt ──────────────────────────────────────────────────────────
 var license_index: int = 0
@@ -58,6 +59,7 @@ var end_message: String = ""    # message affiché en fin de partie
 
 # ─── Signaux ──────────────────────────────────────────────────────────────────
 signal phase_changed(new_phase: GamePhase)
+signal intel_updated()
 signal day_started(day: int)
 signal game_over(reason: String)
 signal game_won(message: String)
@@ -107,8 +109,13 @@ func start_new_day() -> void:
 	for corp in get_all_corporations():
 		corp.reset_day()
 
-	# Générer les parcelles du jour (profondeur plafonnée par la licence)
-	current_parcels = ParcelGenerator.generate_parcels(current_day)
+	# Parcelles du jour : on reprend le lot pré-généré au Soir précédent
+	# (sur lequel l'intel a pu être achetée), sinon on en génère un neuf.
+	if not pending_parcels.is_empty():
+		current_parcels = pending_parcels
+		pending_parcels = []
+	else:
+		current_parcels = ParcelGenerator.generate_parcels(current_day)
 
 	# Game over : impossible d'opérer si on ne peut s'offrir aucune parcelle
 	if not _player_can_afford_any_parcel():
@@ -133,12 +140,75 @@ func start_mining_phase() -> void:
 func start_evening_phase() -> void:
 	# Appelé par la scène de mine quand la journée se termine
 	_change_phase(GamePhase.EVENING)
+	ensure_pending_parcels()
 
 func end_evening_phase(sold_resources: Dictionary) -> void:
 	# Appelé par EveningUI après que le joueur a vendu et dépensé.
 	# Le remboursement de fin de semaine est résolu AVANT (resolve_weekend).
 	MarketManager.advance_day(sold_resources)
 	start_new_day()
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  INTEL — bouquets achetés au Soir pour le lot du LENDEMAIN
+#  Révélation ALÉATOIRE (pari sur l'info). Révèle richesse + minerai le plus rare.
+# ─────────────────────────────────────────────────────────────────────────────
+
+const INTEL_FACTOR: Dictionary = { 1: 1.3, 2: 2.2, 3: 3.0 }
+const INTEL_FLOOR:  Dictionary = { 1: 100, 2: 180, 3: 240 }
+
+# Génère le lot de demain s'il ne l'est pas déjà (pour que l'intel ait une cible).
+func ensure_pending_parcels() -> void:
+	if pending_parcels.is_empty():
+		pending_parcels = ParcelGenerator.generate_parcels(current_day + 1)
+
+# Parcelles révélables : ni publiques, ni Mystère, pas déjà révélées.
+func _revealable_pending() -> Array:
+	var out: Array = []
+	for p in pending_parcels:
+		if p.is_public or p.parcel_type == ParcelData.ParcelType.MYSTERY or p.intel_revealed:
+			continue
+		out.append(p)
+	return out
+
+# Moyenne des prix de base du lot (hors publiques) — proxy des enjeux.
+func _pending_avg_value() -> float:
+	var total: int = 0
+	var n: int = 0
+	for p in pending_parcels:
+		if p.is_public:
+			continue
+		total += p.base_price
+		n += 1
+	return float(total) / float(maxi(1, n)) if n > 0 else 150.0
+
+# Prix d'un bouquet de n révélations.
+func intel_bouquet_price(n: int) -> int:
+	ensure_pending_parcels()
+	var factor: float = float(INTEL_FACTOR.get(n, 1.0))
+	var floor_v: int  = int(INTEL_FLOOR.get(n, 100))
+	return maxi(floor_v, int(round(_pending_avg_value() * factor)))
+
+# Nombre de parcelles encore révélables dans le lot de demain.
+func intel_revealable_count() -> int:
+	ensure_pending_parcels()
+	return _revealable_pending().size()
+
+# Achète un bouquet : débite et révèle n parcelles AU HASARD.
+# Renvoie le nombre réellement révélé (0 si fonds insuffisants ou pas assez de parcelles).
+func buy_intel_bouquet(n: int) -> int:
+	ensure_pending_parcels()
+	var pool: Array = _revealable_pending()
+	if pool.size() < n:
+		return 0
+	var price: int = intel_bouquet_price(n)
+	if player_corporation.money < price:
+		return 0
+	pool.shuffle()
+	for i in n:
+		pool[i].intel_revealed = true
+	player_corporation.spend(price)
+	intel_updated.emit()
+	return n
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  LICENCES & PRÊT
@@ -248,7 +318,7 @@ func _simulate_ai_evening() -> Dictionary:
 
 func _estimate_ai_haul(parcel: ParcelData) -> Dictionary:
 	var tier: int = parcel.depth_tier
-	var haul: Dictionary = { "coal": 0, "iron": 0, "gold": 0, "gem": 0, "crystal": 0 }
+	var haul: Dictionary = { "coal": 0, "iron": 0, "gold": 0, "sapphire": 0, "diamond": 0 }
 	# Base de charbon, croissante avec la profondeur (bridée — stub temporaire,
 	# une vraie simulation IA viendra plus tard).
 	haul["coal"] = 9 + 5 * tier + randi() % 6
@@ -257,8 +327,8 @@ func _estimate_ai_haul(parcel: ParcelData) -> Dictionary:
 	match parcel.resource_hint:
 		ParcelData.ResourceHint.IRON:    haul["iron"]    += q
 		ParcelData.ResourceHint.GOLD:    haul["gold"]    += maxi(1, q / 3)
-		ParcelData.ResourceHint.GEM:     haul["gem"]     += maxi(1, q / 4)
-		ParcelData.ResourceHint.CRYSTAL: haul["crystal"] += maxi(1, q / 5)
+		ParcelData.ResourceHint.GEM:     haul["sapphire"] += maxi(1, q / 4)
+		ParcelData.ResourceHint.CRYSTAL: haul["diamond"]  += maxi(1, q / 5)
 		ParcelData.ResourceHint.COAL:    haul["coal"]    += q
 	return haul
 

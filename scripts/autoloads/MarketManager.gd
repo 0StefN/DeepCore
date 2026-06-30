@@ -11,13 +11,8 @@ extends Node
 # ─────────────────────────────────────────────────────────────────────────────
 
 # Prix de base par unité (en $)
-const BASE_PRICES: Dictionary = {
-	"coal":    6,
-	"iron":    15,
-	"gold":    80,
-	"gem":     150,
-	"crystal": 260,
-}
+# Prix de base par unité ($) — construits depuis OreDB (source unique) dans initialize().
+var BASE_PRICES: Dictionary = {}
 
 # Limites des multiplicateurs
 const MULT_MIN: float = 0.35
@@ -33,6 +28,7 @@ signal prices_updated()
 # ─────────────────────────────────────────────────────────────────────────────
 
 func initialize() -> void:
+	BASE_PRICES = OreDB.get_base_prices()
 	for resource in BASE_PRICES:
 		price_multipliers[resource] = 1.0
 		price_history[resource] = [1.0]
@@ -85,7 +81,7 @@ func get_sell_price(resource: String, corp: CorporationData) -> int:
 	var bonus: float = 0.0
 	if resource == "iron":
 		bonus = ResearchManager.get_iron_value_bonus(corp)
-	elif resource == "gold" or resource == "gem":
+	elif OreDB.get_palier(resource) >= 4:
 		bonus = ResearchManager.get_precious_value_bonus(corp)
 	return int(price * (1.0 + bonus))
 

@@ -11,10 +11,7 @@ extends Control
 #  vendue ou déplacée en stockage. Le stockage persiste contre un loyer/nuit.
 # ─────────────────────────────────────────────────────────────────────────────
 
-const RES_ORDER: Array[String] = ["coal", "iron", "gold", "gem", "crystal"]
-const RES_NAMES: Dictionary = {
-	"coal": "Charbon", "iron": "Fer", "gold": "Or", "gem": "Gemmes", "crystal": "Cristaux",
-}
+var RES_ORDER: Array = []   # rempli depuis OreDB dans _ready
 const CAT_NAMES: Dictionary = {
 	ResearchNode.Category.MINING:       "⛏  Minage",
 	ResearchNode.Category.EXPLOSIVES:   "💥  Explosifs",
@@ -51,6 +48,7 @@ func _corp() -> CorporationData:
 # ─────────────────────────────────────────────────────────────────────────────
 
 func _ready() -> void:
+	RES_ORDER = OreDB.get_ids()
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	for r in RES_ORDER:
 		_sold[r] = 0
@@ -112,6 +110,7 @@ func _refresh() -> void:
 func _build_market_tab() -> void:
 	for c in market_box.get_children():
 		c.queue_free()
+	_build_intel_card()
 	_build_prices_card()
 	_build_chest_card()
 	_build_consumables_card()
@@ -125,7 +124,7 @@ func _build_prices_card() -> void:
 	grid.add_theme_constant_override("v_separation", 4)
 	for res in RES_ORDER:
 		var n := Label.new()
-		n.text = RES_NAMES[res]
+		n.text = OreDB.get_display(res)
 		n.custom_minimum_size = Vector2(120, 0)
 		grid.add_child(n)
 
@@ -191,6 +190,73 @@ func _on_buy_consumable(id: String, price: int) -> void:
 		return
 	corp.spend(price)
 	corp.add_consumable(id, 1)
+	_refresh()
+
+# ─── Carte INTEL (bouquets pour le lot de demain) ─────────────────────────────
+
+func _build_intel_card() -> void:
+	GameManager.ensure_pending_parcels()
+	var corp := _corp()
+	var box := _card(market_box, "INTEL — LOT DE DEMAIN")
+
+	var pend: Array = GameManager.pending_parcels
+	var n_total: int = 0
+	var dmin: int = 99
+	var dmax: int = 0
+	for p: ParcelData in pend:
+		if p.is_public:
+			continue
+		n_total += 1
+		dmin = mini(dmin, p.num_paliers)
+		dmax = maxi(dmax, p.num_paliers)
+
+	var revealable: int = GameManager.intel_revealable_count()
+	var summary := Label.new()
+	summary.autowrap_mode = TextServer.AUTOWRAP_WORD
+	if n_total == 0:
+		summary.text = "Aucune parcelle à sonder pour demain."
+	else:
+		summary.text = "Demain : %d parcelles • profondeurs %d–%d paliers • %d encore à révéler." % [
+			n_total, dmin, dmax, revealable]
+	box.add_child(summary)
+
+	if revealable > 0:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		for n in [1, 2, 3]:
+			var price: int = GameManager.intel_bouquet_price(n)
+			var btn := Button.new()
+			btn.text = "%d parcelle%s\n%d$" % [n, "s" if n > 1 else "", price]
+			btn.disabled = n > revealable or corp.money < price
+			btn.pressed.connect(_on_buy_intel.bind(n))
+			row.add_child(btn)
+		box.add_child(row)
+		var hint := Label.new()
+		hint.text = "Révélation au hasard — tu paries sur l'info (richesse + minerai le plus rare)."
+		hint.autowrap_mode = TextServer.AUTOWRAP_WORD
+		hint.modulate = Color(0.7, 0.7, 0.7)
+		box.add_child(hint)
+	elif n_total > 0:
+		var done := Label.new()
+		done.text = "Tout le lot sondable est révélé."
+		done.modulate = Color(0.7, 0.85, 0.7)
+		box.add_child(done)
+
+	# Feedback : ce qui a déjà été révélé
+	var any_revealed: bool = false
+	for p: ParcelData in pend:
+		if p.intel_revealed and not p.is_public:
+			if not any_revealed:
+				box.add_child(HSeparator.new())
+				any_revealed = true
+			var rl := Label.new()
+			rl.text = "✓ %d paliers — %s · %s" % [
+				p.num_paliers, p.get_richness_display(), OreDB.get_display(p.rarest_ore)]
+			rl.modulate = OreDB.get_color(p.rarest_ore)
+			box.add_child(rl)
+
+func _on_buy_intel(n: int) -> void:
+	GameManager.buy_intel_bouquet(n)
 	_refresh()
 
 func _build_chest_card() -> void:
@@ -277,7 +343,7 @@ func _resource_row(res: String, qty: int, from_chest: bool) -> HBoxContainer:
 	var lbl := Label.new()
 	lbl.custom_minimum_size = Vector2(300, 0)
 	lbl.text = "%s ×%d    @%d$ %s    = %d$" % [
-		RES_NAMES[res], qty, price, MarketManager.get_trend_icon(res), qty * price]
+		OreDB.get_display(res), qty, price, MarketManager.get_trend_icon(res), qty * price]
 	row.add_child(lbl)
 
 	var sell := Button.new()

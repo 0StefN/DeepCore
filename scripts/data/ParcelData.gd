@@ -4,7 +4,8 @@ extends Resource
 # ─────────────────────────────────────────────────────────────────────────────
 #  ParcelData.gd
 #  Données d'une parcelle de terrain. Utilisé comme Resource (pas de node).
-#  Les champs "actual_*" sont cachés au joueur jusqu'à ce qu'il mine.
+#  Les champs "actual_*" / present_ores / rarest_ore sont cachés au joueur
+#  (révélés par l'intel en Phase 2). num_paliers = profondeur réelle (1 à 8).
 # ─────────────────────────────────────────────────────────────────────────────
 
 enum SoilType {
@@ -32,11 +33,12 @@ enum ResourceHint {
 	UNKNOWN,   # Parcelle Mystère — hint masqué
 }
 
+# Densité de minerai (révélée par l'intel). Renommé : Poor/Medium/Rich/Loaded.
 enum Richness {
-	POOR,      # Pauvre  : peu de minerai
-	NORMAL,    # Normale : standard (rentable)
-	RICH,      # Riche   : bien fournie
-	BONANZA,   # Filon   : jackpot, très rare
+	POOR,      # Pauvre
+	MEDIUM,    # Moyenne (standard, rentable)
+	RICH,      # Riche
+	LOADED,    # Chargée : jackpot, très rare
 }
 
 # ─── Infos visibles avant achat ───────────────────────────────────────────────
@@ -44,16 +46,21 @@ enum Richness {
 @export var grid_position: Vector2i = Vector2i.ZERO
 @export var soil_type: SoilType = SoilType.LIMESTONE
 @export var parcel_type: ParcelType = ParcelType.NORMAL
-@export var depth_tier: int = 1          # 1 = peu profond, 2 = moyen, 3 = très profond
+@export var depth_tier: int = 1          # Bracket grossier 1/2/3 (dérivé de num_paliers)
+@export var num_paliers: int = 3         # Profondeur réelle : nb de couches (1 à 8)
 @export var resource_hint: ResourceHint = ResourceHint.COAL
 @export var base_price: int = 100
 @export var required_research: String = ""  # Pour les parcelles RESERVED
 
-# ─── Infos cachées, révélées pendant la mine ──────────────────────────────────
-var actual_resources: Dictionary = {}    # { "coal": 50, "iron": 20, … }
-var richness: Richness = Richness.NORMAL  # Densité réelle de la mine (révélée par Sondage)
-var collapse_chance: float = 0.0        # Pour UNSTABLE
-var is_public: bool = false             # Parcelle publique gratuite
+# ─── Infos cachées, révélées par l'intel (Phase 2) ────────────────────────────
+var actual_resources: Dictionary = {}    # { "coal": 50, "iron": 20, … } (approx)
+var present_ores: Array[String] = []     # Minerais réellement présents (vérité)
+var rarest_ore: String = ""              # Minerai le plus rare présent (intel)
+var richness: Richness = Richness.MEDIUM # Densité réelle (révélée par l'intel)
+var collapse_chance: float = 0.0         # Pour UNSTABLE
+var is_public: bool = false              # Parcelle publique gratuite
+var generation_seed: int = 0             # Seed déterministe (mine = ce que dit l'intel)
+var intel_revealed: bool = false         # L'intel (richesse + minerai rare) a-t-elle été achetée ?
 
 # ─── État enchère/mine ────────────────────────────────────────────────────────
 var is_claimed: bool = false
@@ -97,26 +104,22 @@ func get_resource_display() -> String:
 		ResourceHint.NONE:    return "Pauvre"
 	return "Inconnu"
 
+# Profondeur = nombre de paliers (couches) de la mine.
 func get_depth_display() -> String:
-	match depth_tier:
-		1: return "Peu profonde"
-		2: return "Profonde"
-		3: return "Très profonde"
-	return "?"
+	return "%d paliers" % num_paliers
 
 func get_depth_icon() -> String:
-	match depth_tier:
-		1: return "🟢"
-		2: return "🟡"
-		3: return "🔴"
-	return "⚪"
+	if num_paliers <= 2:   return "🟢"
+	if num_paliers <= 4:   return "🟡"
+	if num_paliers <= 6:   return "🟠"
+	return "🔴"
 
 func get_richness_display() -> String:
 	match richness:
-		Richness.POOR:    return "Pauvre"
-		Richness.NORMAL:  return "Normale"
-		Richness.RICH:    return "Riche"
-		Richness.BONANZA: return "Filon !"
+		Richness.POOR:   return "Pauvre"
+		Richness.MEDIUM: return "Moyenne"
+		Richness.RICH:   return "Riche"
+		Richness.LOADED: return "Chargée !"
 	return "?"
 
 func is_owned_by(corp_id: int) -> bool:

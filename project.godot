@@ -17,6 +17,7 @@ config/icon="res://icon.svg"
 
 [autoload]
 
+OreDB="*res://scripts/data/OreData.gd"
 GameManager="*uid://lxktqk7wu1f3"
 ParcelGenerator="*uid://caoxlo4vt5uu0"
 BiddingManager="*uid://dmbtcctn2tsu3"
