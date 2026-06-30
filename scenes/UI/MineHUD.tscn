@@ -7,18 +7,20 @@ script = ExtResource("1_nsuyh")
 
 [node name="Root" type="Control" parent="." unique_id=1496397566]
 layout_mode = 3
-anchors_preset = 5
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -20.0
-offset_right = 20.0
-offset_bottom = 40.0
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
 grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
 
 [node name="TopBar" type="HBoxContainer" parent="Root" unique_id=937443554]
-layout_mode = 0
-offset_right = 142.0
-offset_bottom = 40.0
+layout_mode = 1
+offset_left = 16.0
+offset_top = 12.0
+offset_right = 360.0
+offset_bottom = 44.0
+theme_override_constants/separation = 24
 
 [node name="TimerLabel" type="Label" parent="Root/TopBar" unique_id=927799425]
 layout_mode = 2
@@ -27,38 +29,86 @@ horizontal_alignment = 1
 
 [node name="ChestLabel" type="Label" parent="Root/TopBar" unique_id=1606238710]
 layout_mode = 2
-text = "Chest : Empty"
+text = "Chest : empty"
 
-[node name="BagFullLabel" type="Label" parent="Root" unique_id=1733471305]
+[node name="FuelGauge" type="VBoxContainer" parent="Root" unique_id=700000001]
+visible = false
 layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -350.0
-offset_top = -11.0
-offset_right = -310.0
-offset_bottom = 12.0
-grow_horizontal = 2
-grow_vertical = 2
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -240.0
+offset_top = 48.0
+offset_right = -16.0
+offset_bottom = 96.0
+grow_horizontal = 0
 
-[node name="DepositLabel" type="Label" parent="Root" unique_id=1586850902]
-layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -210.0
-offset_top = -6.0
-offset_right = -170.0
-offset_bottom = 17.0
-grow_horizontal = 2
-grow_vertical = 2
+[node name="FuelTitle" type="Label" parent="Root/FuelGauge" unique_id=700000002]
+layout_mode = 2
+text = "⛽ Jetpack"
+
+[node name="FuelBar" type="ProgressBar" parent="Root/FuelGauge" unique_id=700000003]
+custom_minimum_size = Vector2(220, 16)
+layout_mode = 2
+max_value = 1.0
+value = 1.0
+show_percentage = false
 
 [node name="SlotsContainer" type="HBoxContainer" parent="Root" unique_id=1092200239]
-layout_mode = 0
-offset_left = 196.0
-offset_right = 236.0
-offset_bottom = 40.0
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = -74.0
+offset_right = 420.0
+offset_bottom = -14.0
+grow_vertical = 0
+theme_override_constants/separation = 8
+
+[node name="Hotbar" type="HBoxContainer" parent="Root" unique_id=700000004]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -94.0
+offset_top = -72.0
+offset_right = 94.0
+offset_bottom = -14.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_constants/separation = 8
+
+[node name="BagFullLabel" type="Label" parent="Root" unique_id=1733471305]
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -200.0
+offset_top = -80.0
+offset_right = 200.0
+offset_bottom = -50.0
+grow_horizontal = 2
+grow_vertical = 2
+horizontal_alignment = 1
+
+[node name="DepositLabel" type="Label" parent="Root" unique_id=1586850902]
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -160.0
+offset_top = -36.0
+offset_right = 160.0
+offset_bottom = -6.0
+grow_horizontal = 2
+grow_vertical = 2
+horizontal_alignment = 1

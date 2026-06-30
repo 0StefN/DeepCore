@@ -3,6 +3,7 @@
 [ext_resource type="Script" uid="uid://bpwgbs6kwll0g" path="res://scripts/general/player.gd" id="1_h00vy"]
 [ext_resource type="Script" uid="uid://bj3lt5wl3fv8i" path="res://scripts/general/InventoryManager.gd" id="2_bvqhm"]
 [ext_resource type="Script" uid="uid://dtgxvxyyn44tx" path="res://scripts/general/MiningComponent.gd" id="3_ved6o"]
+[ext_resource type="Script" uid="uid://cjp7k2vn4qx8m" path="res://scripts/general/JetpackComponent.gd" id="4_jetpk"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_qtl8q"]
 size = Vector2(20, 28)
@@ -23,3 +24,6 @@ script = ExtResource("2_bvqhm")
 
 [node name="MiningComponent" type="Node" parent="." unique_id=212323674]
 script = ExtResource("3_ved6o")
+
+[node name="JetpackComponent" type="Node" parent="." unique_id=991337001]
+script = ExtResource("4_jetpk")

@@ -36,6 +36,12 @@ var selected_parcel: ParcelData = null
 var parcel_cards: Dictionary = {}     # parcel_id -> ParcelCard
 var _validating: bool = false
 var _flash_active: bool = false
+var _survey_label: Label = null       # créé à la volée (Sondage Géologique)
+
+const RES_NAMES: Dictionary = {
+	"coal": "Charbon", "iron": "Fer", "gold": "Or",
+	"gem": "Gemmes", "crystal": "Cristaux",
+}
 
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -60,7 +66,9 @@ func _ready() -> void:
 	clear_bid_button.pressed.connect(_on_clear_pressed)
 	validate_button.pressed.connect(_on_validate_pressed)
 
-	day_label.text = "Jour %d" % GameManager.current_day
+	day_label.text = "Jour %d   ·   Licence %s   ·   Dette : reste %d$ avant J%d (%d j)" % [
+		GameManager.current_day, GameManager.license_name(),
+		GameManager.debt_remaining(), GameManager.current_deadline(), GameManager.days_left()]
 
 	if BiddingManager.active:
 		_on_auction_started()
@@ -118,6 +126,8 @@ func _refresh_bid_panel() -> void:
 	type_warning.text    = _get_type_warning(selected_parcel)
 	type_warning.visible = type_warning.text != ""
 
+	_refresh_survey(selected_parcel)
+
 	var cost: int = BiddingManager.get_cost_to_take(pid)
 	var money: int = GameManager.player_corporation.money
 	var is_current: bool = BiddingManager.get_player_target() == pid
@@ -146,6 +156,46 @@ func _set_info_label(node_name: String, value: String) -> void:
 	var label := bid_panel.find_child(node_name, true, false) as Label
 	if label:
 		label.text = value
+
+# ─── Sondage Géologique ────────────────────────────────────────────────────────
+
+func _ensure_survey_label() -> void:
+	if _survey_label and is_instance_valid(_survey_label):
+		return
+	_survey_label = Label.new()
+	_survey_label.name          = "SurveyLabel"
+	_survey_label.autowrap_mode = TextServer.AUTOWRAP_WORD
+	_survey_label.modulate      = Color(0.70, 0.90, 1.0)
+	var vbox: Node = type_warning.get_parent()
+	vbox.add_child(_survey_label)
+	vbox.move_child(_survey_label, type_warning.get_index() + 1)
+
+# Affiche une estimation EN FOURCHETTE des ressources réelles de la parcelle.
+# Largeur de la fourchette = (1 - survey_accuracy) : plus la recherche est haute,
+# plus l'estimation est serrée. La vraie valeur est toujours dans la fourchette.
+func _refresh_survey(parcel: ParcelData) -> void:
+	_ensure_survey_label()
+	var corp: CorporationData = GameManager.player_corporation
+	var accuracy: float = ResearchManager.get_effect("survey_accuracy", corp)
+	if accuracy <= 0.0:
+		_survey_label.visible = false
+		return
+
+	var hw: float = 1.0 - accuracy
+	var lines: Array[String] = []
+	for res in ["coal", "iron", "gold", "gem", "crystal"]:
+		var amount: int = int(parcel.actual_resources.get(res, 0))
+		if amount <= 0:
+			continue
+		var lo: int = maxi(0, int(floor(float(amount) * (1.0 - hw) / 5.0)) * 5)
+		var hi: int = int(ceil(float(amount) * (1.0 + hw) / 5.0)) * 5
+		lines.append("%s ~%d-%d" % [RES_NAMES.get(res, res), lo, hi])
+
+	if lines.is_empty():
+		lines.append("rien de notable détecté")
+	_survey_label.text    = "🔬 Sondage — Richesse : %s\n%s" % [
+		parcel.get_richness_display(), "   •   ".join(lines)]
+	_survey_label.visible = true
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  ACTIONS DU JOUEUR
@@ -246,16 +296,36 @@ func _refresh_status() -> void:
 func _refresh_corps_panel() -> void:
 	for child in corps_panel.get_children():
 		child.queue_free()
+
+	var has_spy: bool = GameManager.player_corporation.has_research("spy_network")
+
 	for corp in GameManager.get_all_corporations():
 		var pid: int = BiddingManager.get_company_parcel_id(corp.corp_id)
-		var where: String = "—"
-		if pid != -1:
-			var p: ParcelData = GameManager.get_parcel_by_id(pid)
-			where = p.get_display_name() if p else "?"
+		var where: String
+
+		if corp.is_player:
+			# Le joueur voit toujours sa propre cible.
+			where = _parcel_short_name(pid)
+		elif not has_spy:
+			# Sans Réseau d'Espions : cible des rivales masquée.
+			where = "???"
+		else:
+			# Avec espionnage : cible + plafond de mise de l'IA.
+			where = _parcel_short_name(pid)
+			var cap: int = BiddingManager.get_ai_maxpay(corp.corp_id, pid)
+			if cap > 0:
+				where += " · max %d$" % cap
+
 		var label := Label.new()
 		label.text     = "%s  —  %d$   [%s]" % [corp.corp_name, corp.money, where]
 		label.modulate = corp.color
 		corps_panel.add_child(label)
+
+func _parcel_short_name(pid: int) -> String:
+	if pid == -1:
+		return "—"
+	var p: ParcelData = GameManager.get_parcel_by_id(pid)
+	return p.get_display_name() if p else "?"
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  VALIDATION → MINE

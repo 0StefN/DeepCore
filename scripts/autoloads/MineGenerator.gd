@@ -25,11 +25,12 @@ const TILE_GRANITE:      Vector2i = Vector2i(2,  0)
 const TILE_DEEP_GRANITE: Vector2i = Vector2i(3,  0)
 const TILE_VOLCANIC:     Vector2i = Vector2i(4,  0)
 const TILE_BEDROCK:      Vector2i = Vector2i(5,  0)
-const TILE_COAL:         Vector2i = Vector2i(6,  0)
-const TILE_IRON:         Vector2i = Vector2i(7,  0)
-const TILE_GOLD:         Vector2i = Vector2i(8,  0)
-const TILE_GEM:          Vector2i = Vector2i(9,  0)
-const TILE_CRYSTAL:      Vector2i = Vector2i(10, 0)
+# Minerais : coords sur le tileset MINERAI (overlay, transparent) — couche séparée.
+const TILE_COAL:         Vector2i = Vector2i(0,  0)
+const TILE_IRON:         Vector2i = Vector2i(1,  0)
+const TILE_GOLD:         Vector2i = Vector2i(2,  0)
+const TILE_GEM:          Vector2i = Vector2i(3,  0)
+const TILE_CRYSTAL:      Vector2i = Vector2i(4,  0)
 
 # ─── Largeur de la mine (en tuiles) ───────────────────────────────────────────
 const MIN_WIDTH: int = 64    # minimum garanti — jamais plus étroit que ça
@@ -37,7 +38,16 @@ const MAX_WIDTH: int = 112
 const SHAFT_WIDTH: int = 5
 
 # ─── Densité des filons (filons par tuile d'aire de bande) ────────────────────
-const VEIN_DENSITY: float = 0.011
+const VEIN_DENSITY: float = 0.015   # densifié (0.011 -> maps trop vides)
+
+# Multiplicateur de densité de filons selon la richesse de la parcelle.
+# Doit suivre RICHNESS_RESOURCE_MULT côté ParcelGenerator (Sondage honnête).
+const RICHNESS_DENSITY_MULT: Dictionary = {
+	ParcelData.Richness.POOR:    0.35,
+	ParcelData.Richness.NORMAL:  1.00,
+	ParcelData.Richness.RICH:    2.00,
+	ParcelData.Richness.BONANZA: 3.80,
+}
 
 # ─── Rendement par bloc selon la couche géologique (style Coal LLC) ───────────
 # C'est la QUANTITÉ de minerai que rapporte chaque bloc miné, selon la couche
@@ -90,28 +100,31 @@ const LAYER_VEINS: Dictionary = {
 var surface_height: int = 4   # Tile row where the mine starts
 var shaft_center_x: int = -1  # Tile X of shaft center (-1 = auto map center)
 
-# ─── Temps de minage (secondes / tuile) ──────────────────────────────────────
-const MINING_TIMES: Dictionary = {
-	Vector2i(0,  0): 0.6,
-	Vector2i(1,  0): 1.2,
-	Vector2i(2,  0): 2.8,
-	Vector2i(3,  0): 5.5,
-	Vector2i(4,  0): 9.5,
-	Vector2i(5,  0): 9999.0,
-	Vector2i(6,  0): 1.8,
-	Vector2i(7,  0): 2.4,
-	Vector2i(8,  0): 4.5,
-	Vector2i(9,  0): 7.0,
-	Vector2i(10, 0): 12.0,
+# ─── Temps de minage (secondes / tuile) — accéléré de 25% pour la rentabilité ──
+# Séparé matériau / minerai car les coords d'atlas se chevauchent (couches distinctes).
+const MAT_MINING_TIME: Dictionary = {
+	TILE_CLAY:         0.48,
+	TILE_LIMESTONE:    0.96,
+	TILE_GRANITE:      2.24,
+	TILE_DEEP_GRANITE: 4.4,
+	TILE_VOLCANIC:     7.6,
+	TILE_BEDROCK:      9999.0,
+}
+const ORE_MINING_TIME: Dictionary = {
+	TILE_COAL:    1.44,
+	TILE_IRON:    1.92,
+	TILE_GOLD:    3.6,
+	TILE_GEM:     5.6,
+	TILE_CRYSTAL: 9.6,
 }
 
-# ─── Ressource droppée par chaque veine ───────────────────────────────────────
+# ─── Ressource droppée par chaque veine (clé = tuile MINERAI) ─────────────────
 const VEIN_RESOURCES: Dictionary = {
-	Vector2i(6,  0): "coal",
-	Vector2i(7,  0): "iron",
-	Vector2i(8,  0): "gold",
-	Vector2i(9,  0): "gem",
-	Vector2i(10, 0): "crystal",
+	TILE_COAL:    "coal",
+	TILE_IRON:    "iron",
+	TILE_GOLD:    "gold",
+	TILE_GEM:     "gem",
+	TILE_CRYSTAL: "crystal",
 }
 
 # Mapping ResourceHint d'une parcelle → tuile ressource (pour le biais de hint)
@@ -136,8 +149,11 @@ class GeoBand:
 # ─── Données générées ─────────────────────────────────────────────────────────
 var map_width:  int = 0
 var map_height: int = 0
-var tile_data:  Dictionary = {}     # Vector2i → Vector2i (atlas coords)
+var tile_data:  Dictionary = {}     # Vector2i → Vector2i (matériau / géologie, porte la collision)
+var ore_data:   Dictionary = {}     # Vector2i → Vector2i (minerai overlay, calque séparé)
 var _bands:     Array = []          # Array[GeoBand], du haut vers le bas
+var _mat_layer: Node = null         # TileMapLayer matériau (collision)
+var _ore_layer: Node = null         # TileMapLayer minerai (overlay, transparent)
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  ENTRÉE PRINCIPALE
@@ -145,6 +161,7 @@ var _bands:     Array = []          # Array[GeoBand], du haut vers le bas
 
 func generate(parcels: Array[ParcelData]) -> void:
 	tile_data.clear()
+	ore_data.clear()
 	_bands.clear()
 	if parcels.is_empty():
 		return
@@ -168,10 +185,15 @@ func generate(parcels: Array[ParcelData]) -> void:
 	# Passe 3 — murs de bedrock indestructibles
 	_generate_boundary_walls()
 
-func populate_tilemap(layer: Node) -> void:
-	layer.clear()
+func populate_tilemap(mat_layer: Node, ore_layer: Node) -> void:
+	_mat_layer = mat_layer
+	_ore_layer = ore_layer
+	mat_layer.clear()
+	ore_layer.clear()
 	for pos: Vector2i in tile_data:
-		layer.set_cell(pos, 0, tile_data[pos])
+		mat_layer.set_cell(pos, 0, tile_data[pos])
+	for pos: Vector2i in ore_data:
+		ore_layer.set_cell(pos, 0, ore_data[pos])
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  PASSE 1 — COUCHES GÉOLOGIQUES
@@ -273,14 +295,15 @@ func _populate_veins(parcel: ParcelData) -> void:
 
 # Multiplicateur de densité dérivé de la parcelle (influence du bidding).
 func _parcel_density_mult(parcel: ParcelData) -> float:
-	var m: float = 1.0
+	# La richesse de la parcelle est la base ; le type spécial module par-dessus.
+	var m: float = RICHNESS_DENSITY_MULT.get(parcel.richness, 1.0)
 	match parcel.parcel_type:
-		ParcelData.ParcelType.UNSTABLE: m = 1.5
-		ParcelData.ParcelType.RESERVED: m = 1.3
-		ParcelData.ParcelType.MYSTERY:  m = randf_range(0.5, 1.8)
+		ParcelData.ParcelType.UNSTABLE: m *= 1.3
+		ParcelData.ParcelType.RESERVED: m *= 1.2
+		ParcelData.ParcelType.MYSTERY:  m *= randf_range(0.6, 1.4)
 	# Les parcelles profondes sont un peu plus riches
 	m += float(parcel.depth_tier - 1) * 0.10
-	return m
+	return clampf(m, 0.2, 4.5)
 
 # Tire une entrée de filon au hasard, pondérée, avec un biais vers le hint de parcelle.
 func _weighted_pick(cfg: Array, hint_tile: Vector2i) -> Array:
@@ -326,7 +349,7 @@ func _grow_vein(center: Vector2i, vein_tile: Vector2i, max_size: int) -> void:
 		if tile_data[pos] == TILE_BEDROCK:
 			continue
 
-		tile_data[pos] = vein_tile
+		ore_data[pos] = vein_tile   # minerai posé en overlay, la géologie est conservée
 		placed += 1
 
 		# Propagation : biais horizontal (filons plus larges que hauts)
@@ -366,21 +389,26 @@ func is_bedrock(pos: Vector2i) -> bool:
 	return tile_data.get(pos, Vector2i(-1, -1)) == TILE_BEDROCK
 
 func get_mining_time(pos: Vector2i) -> float:
-	var tile: Vector2i = tile_data.get(pos, Vector2i(-1, -1))
-	return MINING_TIMES.get(tile, 1.0)
+	# Le minerai (s'il y en a) est plus lent que la roche nue (comportement conservé).
+	if pos in ore_data:
+		return ORE_MINING_TIME.get(ore_data[pos], 1.0)
+	return MAT_MINING_TIME.get(tile_data.get(pos, Vector2i(-1, -1)), 1.0)
 
 func get_resource(pos: Vector2i) -> String:
-	var tile: Vector2i = tile_data.get(pos, Vector2i(-1, -1))
-	return VEIN_RESOURCES.get(tile, "")
+	return VEIN_RESOURCES.get(ore_data.get(pos, Vector2i(-99, -99)), "")
 
 # Quantité de minerai rendue par ce bloc, selon la couche géologique sous-jacente.
 func get_yield(pos: Vector2i) -> int:
 	var geo: Vector2i = _layer_tile_at(pos.x, pos.y)
 	return LAYER_YIELD.get(geo, 1)
 
-func remove_tile(pos: Vector2i, layer: Node) -> void:
+func remove_tile(pos: Vector2i) -> void:
 	tile_data.erase(pos)
-	layer.erase_cell(pos)
+	ore_data.erase(pos)
+	if _mat_layer:
+		_mat_layer.erase_cell(pos)
+	if _ore_layer:
+		_ore_layer.erase_cell(pos)
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  SURFACE HELPERS (used by World.gd to position chest, deposit zone, etc.)

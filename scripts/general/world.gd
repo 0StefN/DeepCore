@@ -18,6 +18,7 @@ const DROP_SCENE: PackedScene = preload("res://scenes/Level/ResourceDrop.tscn")
 
 @onready var surface_tiles: TileMapLayer    = $SurfaceTileLayer
 @onready var mine_tiles:    TileMapLayer    = $MineTileLayer
+@onready var ore_tiles:     TileMapLayer    = $MineOreLayer
 @onready var chest:         Chest           = $Chest
 @onready var player:        CharacterBody2D = $Player
 @onready var overlay:       Node2D          = $Overlay
@@ -52,7 +53,7 @@ func _ready() -> void:
 	MineGenerator.shaft_center_x = shaft_x if shaft_x > 0 else -1
 
 	MineGenerator.generate(parcels)
-	MineGenerator.populate_tilemap(mine_tiles)
+	MineGenerator.populate_tilemap(mine_tiles, ore_tiles)
 	LightManager.compute_all()
 
 	# ── Carve shaft in hand-painted surface ───────────────────────────────────
@@ -63,7 +64,6 @@ func _ready() -> void:
 
 	var mining:    Node = player.get_node("MiningComponent")
 	var inventory: Node = player.get_node("InventoryManager")
-	mining.tile_layer = mine_tiles
 
 	# ── Drops container (rendered below the darkness Overlay) ─────────────────
 	_drops = Node2D.new()
@@ -75,6 +75,8 @@ func _ready() -> void:
 	mining.drop_spawned.connect(_on_drop_spawned)
 	mining.tile_broken.connect(LightManager.update_around)
 	mining.mine_target_changed.connect(overlay._on_mine_target_changed)
+	mining.torch_placed.connect(overlay.add_torch)
+	mining.dynamite_placed.connect(_on_dynamite_placed)
 
 	# ── Chest ─────────────────────────────────────────────────────────────────
 	# Position is set manually in the scene editor — do not override it here.
@@ -82,6 +84,9 @@ func _ready() -> void:
 
 	# ── HUD & timer ───────────────────────────────────────────────────────────
 	mine_hud.setup(inventory, day_timer)
+	mine_hud.bind_jetpack(player.get_node("JetpackComponent"))
+	mine_hud.bind_tools(mining)
+	mine_hud.manual_drop.connect(_on_manual_drop)
 	day_timer.start()
 	day_timer.time_expired.connect(_on_day_expired)
 
@@ -94,6 +99,49 @@ func _on_drop_spawned(resource: String, amount: int, world_pos: Vector2) -> void
 	_drops.add_child(drop)
 	drop.global_position = world_pos
 	drop.setup(resource, amount, player, player.get_node("InventoryManager"))
+
+func _on_manual_drop(resource: String) -> void:
+	var inv: Node = player.get_node("InventoryManager")
+	if not inv.remove_one(resource):
+		return
+	var drop: ResourceDrop = DROP_SCENE.instantiate()
+	_drops.add_child(drop)
+	drop.global_position = player.global_position + Vector2(randf_range(-6.0, 6.0), -4.0)
+	drop.setup(resource, 1, player, inv, 3.0)   # 3s avant que l'aimant puisse le reprendre
+
+# ─── Dynamite ─────────────────────────────────────────────────────────────────
+
+func _tile_center(tile: Vector2i) -> Vector2:
+	return Vector2(
+		float(tile.x) * TILE_SIZE + TILE_SIZE * 0.5,
+		float(tile.y) * TILE_SIZE + TILE_SIZE * 0.5
+	)
+
+func _on_dynamite_placed(tile: Vector2i) -> void:
+	var corp: CorporationData = GameManager.player_corporation
+	var radius: float = maxf(1.0, ResearchManager.get_effect("explosives_radius", corp))
+	var dyn := Dynamite.new()
+	add_child(dyn)
+	dyn.global_position = _tile_center(tile)
+	dyn.setup(radius)
+	dyn.detonated.connect(_on_dynamite_detonated.bind(tile, radius))
+
+func _on_dynamite_detonated(center: Vector2i, radius: float) -> void:
+	var r: int = int(ceil(radius))
+	var r2: float = radius * radius
+	for dy in range(-r, r + 1):
+		for dx in range(-r, r + 1):
+			if float(dx * dx + dy * dy) > r2:
+				continue
+			var tile: Vector2i = center + Vector2i(dx, dy)
+			if not MineGenerator.is_solid(tile) or MineGenerator.is_bedrock(tile):
+				continue
+			var resource: String = MineGenerator.get_resource(tile)
+			var amount:   int    = MineGenerator.get_yield(tile)
+			MineGenerator.remove_tile(tile)
+			LightManager.update_around(tile)
+			if resource != "":
+				_on_drop_spawned(resource, amount, _tile_center(tile))
 
 func _carve_shaft() -> void:
 	var shaft_left: int = MineGenerator.get_shaft_left()

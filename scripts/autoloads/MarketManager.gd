@@ -12,7 +12,7 @@ extends Node
 
 # Prix de base par unité (en $)
 const BASE_PRICES: Dictionary = {
-	"coal":    5,
+	"coal":    6,
 	"iron":    15,
 	"gold":    80,
 	"gem":     150,
@@ -97,14 +97,14 @@ func advance_day(sold_all: Dictionary) -> void:
 		var sold_amount: float = float(sold_all.get(resource, 0))
 		var current:     float = float(price_multipliers[resource])
 
-		# L'offre baisse le prix
-		var supply_effect: float = -sold_amount * 0.0025
+		# L'offre baisse le prix (sensibilité réduite pour éviter l'effondrement)
+		var supply_effect: float = -sold_amount * 0.0006
 
 		# Fluctuation aléatoire quotidienne
 		var noise: float = randf_range(-0.12, 0.12)
 
-		# Mean reversion : le prix tend vers 1.0 sur le long terme
-		var reversion: float = (1.0 - current) * 0.12
+		# Mean reversion : le prix tend vers 1.0 sur le long terme (récupération plus rapide)
+		var reversion: float = (1.0 - current) * 0.18
 
 		var new_mult: float = clampf(current + supply_effect + noise + reversion, MULT_MIN, MULT_MAX)
 		price_multipliers[resource] = new_mult

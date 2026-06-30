@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://cy2bkddbai8qp" path="res://scripts/general/world.gd" id="1_32lhk"]
 [ext_resource type="TileSet" uid="uid://kkijistnafap" path="res://assets/tiles/resources_tileset.tres" id="2_0uv0p"]
+[ext_resource type="TileSet" uid="uid://bnq2oretl8st0" path="res://assets/tiles/ore_overlay.tres" id="8_ore0"]
 [ext_resource type="PackedScene" uid="uid://dte5wob5y8gej" path="res://scenes/Player/Player.tscn" id="3_7g83o"]
 [ext_resource type="PackedScene" uid="uid://dco1v7yq5q22s" path="res://scenes/Level/Chest.tscn" id="4_0uv0p"]
 [ext_resource type="Script" uid="uid://yg5f8qbemk0r" path="res://scripts/ui/overlay.gd" id="4_d1c63"]
@@ -23,6 +24,9 @@ tile_set = ExtResource("2_0uv0p")
 
 [node name="MineTileLayer" type="TileMapLayer" parent="." unique_id=192505364]
 tile_set = ExtResource("2_0uv0p")
+
+[node name="MineOreLayer" type="TileMapLayer" parent="." unique_id=192505365]
+tile_set = ExtResource("8_ore0")
 
 [node name="Chest" parent="." unique_id=1492673063 instance=ExtResource("4_0uv0p")]
 position = Vector2(474, 170)

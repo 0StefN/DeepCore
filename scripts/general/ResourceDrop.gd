@@ -34,6 +34,7 @@ var _velocity:  Vector2 = Vector2.ZERO
 var _resting:   bool    = false
 var _player:    Node2D  = null
 var _inventory: Node    = null
+var _no_pickup_time: float = 0.0   # tant que > 0, l'aimant ne peut pas reprendre l'objet
 
 # ─── Placeholder colours (replace with real art later) ────────────────────────
 const COLORS: Dictionary = {
@@ -63,11 +64,12 @@ var _sprite: Sprite2D = null   # created in setup() when a texture is configured
 
 # ─────────────────────────────────────────────────────────────────────────────
 
-func setup(res: String, amt: int, player: Node2D, inventory: Node) -> void:
+func setup(res: String, amt: int, player: Node2D, inventory: Node, pickup_delay: float = 0.0) -> void:
 	resource   = res
 	amount     = amt
 	_player    = player
 	_inventory = inventory
+	_no_pickup_time = pickup_delay
 	# Little pop so drops scatter instead of stacking on one pixel
 	_velocity = Vector2(randf_range(-70.0, 70.0), randf_range(-180.0, -90.0))
 	_setup_sprite()
@@ -93,6 +95,9 @@ func _process(delta: float) -> void:
 		queue_free()
 		return
 
+	if _no_pickup_time > 0.0:
+		_no_pickup_time -= delta
+
 	if _can_magnetize():
 		_do_magnet(delta)
 	else:
@@ -106,6 +111,8 @@ func _process(delta: float) -> void:
 
 func _can_magnetize() -> bool:
 	if not _player or not _inventory:
+		return false
+	if _no_pickup_time > 0.0:
 		return false
 	if _inventory.is_full():
 		return false

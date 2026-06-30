@@ -24,9 +24,9 @@ func initialize() -> void:
 func _register_all_nodes() -> void:
 
 	# ── MINING (ligne 0) ──────────────────────────────────────────────────────
-	_add("pickaxe_upgrade", "Pic Renforcé", "Mine 20% plus vite.",
-		ResearchNode.Category.MINING, 150, [],
-		"mining_speed", 0.20, 0.10, 3, Vector2i(0, 0))
+	_add("pickaxe_upgrade", "Pioche Améliorée", "Mine plus vite (+25% par niveau, jusqu'au niveau 10).",
+		ResearchNode.Category.MINING, 120, [],
+		"mining_speed", 0.25, 0.25, 10, Vector2i(0, 0))
 	_add("drill_basic", "Foreuse Basique", "Débloque les parcelles Réservées (profondeur 1).",
 		ResearchNode.Category.MINING, 300, ["pickaxe_upgrade"],
 		"unlock_reserved_1", 1.0, 0.0, 1, Vector2i(1, 0))
@@ -38,9 +38,9 @@ func _register_all_nodes() -> void:
 		"unlock_reserved_3", 1.0, 0.0, 1, Vector2i(3, 0))
 
 	# ── EXPLOSIFS (ligne 1) — à venir ─────────────────────────────────────────
-	_add("explosives_basic", "Dynamite", "Pose des charges pour détruire les blocs en zone.",
+	_add("explosives_basic", "Dynamite", "Débloque l'achat de dynamite (détruit les blocs en zone, +50% de rayon par niveau).",
 		ResearchNode.Category.EXPLOSIVES, 400, ["pickaxe_upgrade"],
-		"explosives_radius", 1.0, 0.5, 3, Vector2i(1, 1), true)
+		"explosives_radius", 1.0, 0.5, 3, Vector2i(1, 1))
 	_add("explosives_chain", "Charges en Chaîne", "Les explosions peuvent en déclencher d'autres.",
 		ResearchNode.Category.EXPLOSIVES, 700, ["explosives_basic"],
 		"explosives_chain", 1.0, 0.0, 1, Vector2i(2, 1), true)
@@ -57,7 +57,7 @@ func _register_all_nodes() -> void:
 		"pickup_radius", 0.6, 0.6, 3, Vector2i(2, 2))
 	_add("lamp", "Lampe de Casque", "Éclaire les alentours du joueur dans la mine.",
 		ResearchNode.Category.LOGISTICS, 300, [],
-		"light_radius", 2.0, 1.0, 3, Vector2i(3, 2), true)
+		"light_radius", 2.0, 1.0, 3, Vector2i(3, 2))
 
 	_add("boots", "Bottes Renforcées", "Augmente la vitesse de déplacement (+15% par niveau).",
 		ResearchNode.Category.LOGISTICS, 220, [],
@@ -65,15 +65,18 @@ func _register_all_nodes() -> void:
 	_add("jump_upgrade", "Saut Amélioré", "Saute plus haut (+15% par niveau).",
 		ResearchNode.Category.LOGISTICS, 240, ["boots"],
 		"jump_power", 0.15, 0.15, 2, Vector2i(1, 3))
-	_add("jetpack", "Jetpack", "Permet de voler temporairement dans la mine.",
+	_add("jetpack", "Jetpack", "Permet de voler dans la mine en maintenant Saut.",
 		ResearchNode.Category.LOGISTICS, 900, ["jump_upgrade"],
-		"jetpack_enabled", 1.0, 0.0, 1, Vector2i(2, 3), true)
-	_add("jetpack_fuel", "Jetpack : Réservoir", "Augmente l'autonomie du jetpack.",
+		"jetpack_enabled", 1.0, 0.0, 1, Vector2i(2, 3))
+	_add("jetpack_fuel", "Jetpack : Réservoir", "Augmente l'autonomie de vol (+50% par niveau).",
 		ResearchNode.Category.LOGISTICS, 500, ["jetpack"],
-		"jetpack_fuel", 1.0, 0.5, 3, Vector2i(3, 3), true)
-	_add("jetpack_thrust", "Jetpack : Propulsion", "Augmente la poussée du jetpack.",
+		"jetpack_fuel", 0.50, 0.50, 3, Vector2i(3, 3))
+	_add("jetpack_thrust", "Jetpack : Propulsion", "Augmente la poussée et la vitesse de montée (+20% par niveau).",
 		ResearchNode.Category.LOGISTICS, 500, ["jetpack"],
-		"jetpack_thrust", 1.0, 0.5, 3, Vector2i(3, 4), true)
+		"jetpack_thrust", 0.20, 0.20, 3, Vector2i(2, 4))
+	_add("jetpack_recharge", "Jetpack : Recharge", "Recharge le carburant plus vite au sol (+30% par niveau).",
+		ResearchNode.Category.LOGISTICS, 500, ["jetpack"],
+		"jetpack_recharge", 0.30, 0.30, 3, Vector2i(3, 4))
 
 	# ── LOGISTIQUE / STOCKAGE (lignes 5-6) ────────────────────────────────────
 	_add("elevator", "Ascenseur", "Remonte instantanément à la surface depuis la mine.",
@@ -100,10 +103,10 @@ func _register_all_nodes() -> void:
 	# ── RENSEIGNEMENT (ligne 8) — à venir (Bloc 2) ────────────────────────────
 	_add("survey_basic", "Sondage Géologique", "Révèle la quantité approximative des ressources d'une parcelle.",
 		ResearchNode.Category.INTELLIGENCE, 300, [],
-		"survey_accuracy", 0.5, 0.25, 2, Vector2i(0, 8), true)
+		"survey_accuracy", 0.5, 0.25, 2, Vector2i(0, 8))
 	_add("spy_network", "Réseau d'Espions", "Révèle les mises des corporations rivales pendant l'enchère.",
 		ResearchNode.Category.INTELLIGENCE, 700, ["survey_basic"],
-		"spy_reveal_bids", 1.0, 0.0, 1, Vector2i(1, 8), true)
+		"spy_reveal_bids", 1.0, 0.0, 1, Vector2i(1, 8))
 
 # Helper pour enregistrer un nœud
 func _add(

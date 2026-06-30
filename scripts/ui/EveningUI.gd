@@ -40,6 +40,11 @@ const COL_FLAT: Color = Color(0.7, 0.7, 0.7)
 
 var _sold: Dictionary = {}   # quantités vendues ce soir par le joueur
 
+# Modale de remboursement de fin de semaine
+var _repay_modal:        Control  = null
+var _repay_slider:       HSlider  = null
+var _repay_amount_label: Label    = null
+
 func _corp() -> CorporationData:
 	return GameManager.player_corporation
 
@@ -59,6 +64,10 @@ func _ready() -> void:
 
 	day_label.text = "Soir — Jour %d" % GameManager.current_day
 	next_day_btn.pressed.connect(_on_next_day)
+
+	# Fin de partie (échec ou victoire) → overlay
+	GameManager.game_over.connect(_show_end_overlay.bind(false))
+	GameManager.game_won.connect(_show_end_overlay.bind(true))
 
 	# Garde-fou : si la scène est lancée seule (sans partie démarrée), pas de corp.
 	if _corp() == null:
@@ -81,6 +90,14 @@ func _refresh() -> void:
 	money_label.text = "Argent : %d$" % corp.money
 	rent_label.text  = "Loyer/nuit : %d$" % corp.storage_rent()
 
+	# Bandeau licence / prêt / échéance
+	var urgent: bool = GameManager.days_left() <= 10 and GameManager.debt_remaining() > 0
+	day_label.text = "Jour %d   ·   Licence %s   ·   Dette : reste %d$ / %d$   ·   échéance J%d (reste %d j)" % [
+		GameManager.current_day, GameManager.license_name(),
+		GameManager.debt_remaining(), GameManager.current_debt(),
+		GameManager.current_deadline(), GameManager.days_left()]
+	day_label.add_theme_color_override("font_color", Color(0.95, 0.4, 0.4) if urgent else Color.WHITE)
+
 	_build_market_tab()
 	_build_upgrades_tab()
 	_update_gate()
@@ -97,6 +114,7 @@ func _build_market_tab() -> void:
 		c.queue_free()
 	_build_prices_card()
 	_build_chest_card()
+	_build_consumables_card()
 	_build_storage_card()
 
 func _build_prices_card() -> void:
@@ -128,6 +146,52 @@ func _build_prices_card() -> void:
 		spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		grid.add_child(spacer)
 	box.add_child(grid)
+
+const CONSUMABLE_SHOP: Array = [
+	{ "id": "torch",    "name": "🔦 Torche",   "price": 15, "research": "" },
+	{ "id": "dynamite", "name": "🧨 Dynamite", "price": 40, "research": "explosives_basic" },
+]
+
+func _build_consumables_card() -> void:
+	var corp := _corp()
+	var box := _card(market_box, "CONSOMMABLES")
+	for def: Dictionary in CONSUMABLE_SHOP:
+		var locked: bool = def["research"] != "" and not corp.has_research(def["research"])
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 10)
+
+		var name_lbl := Label.new()
+		name_lbl.text = def["name"]
+		name_lbl.custom_minimum_size = Vector2(150, 0)
+		row.add_child(name_lbl)
+
+		var owned := Label.new()
+		owned.text = "possédées : %d" % corp.consumable_count(def["id"])
+		owned.custom_minimum_size = Vector2(130, 0)
+		row.add_child(owned)
+
+		var spacer := Control.new()
+		spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(spacer)
+
+		var buy := Button.new()
+		if locked:
+			buy.text = "Recherche requise"
+			buy.disabled = true
+		else:
+			buy.text = "Acheter (%d$)" % int(def["price"])
+			buy.disabled = corp.money < int(def["price"])
+			buy.pressed.connect(_on_buy_consumable.bind(str(def["id"]), int(def["price"])))
+		row.add_child(buy)
+		box.add_child(row)
+
+func _on_buy_consumable(id: String, price: int) -> void:
+	var corp := _corp()
+	if corp.money < price:
+		return
+	corp.spend(price)
+	corp.add_consumable(id, 1)
+	_refresh()
 
 func _build_chest_card() -> void:
 	var corp := _corp()
@@ -487,6 +551,165 @@ func _on_buy_research(node_id: String) -> void:
 	_refresh()
 
 func _on_next_day() -> void:
+	# Fin de semaine : passer par l'écran de remboursement du prêt.
+	if GameManager.is_weekend():
+		_show_repayment_modal()
+		return
+	_proceed_to_next_day()
+
+func _proceed_to_next_day() -> void:
 	next_day_btn.disabled = true
 	GameManager.close_evening(_sold)
+	# Si la partie s'est terminée (échec/victoire), l'overlay est déjà affiché.
+	if GameManager.current_phase == GameManager.GamePhase.GAME_OVER:
+		return
+	get_tree().change_scene_to_file.call_deferred("res://scenes/UI/BiddingUI.tscn")
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  REMBOURSEMENT DE FIN DE SEMAINE
+# ─────────────────────────────────────────────────────────────────────────────
+
+func _show_repayment_modal() -> void:
+	var corp := _corp()
+	var max_pay: int = maxi(0, mini(corp.money, GameManager.debt_remaining()))
+
+	var overlay := ColorRect.new()
+	overlay.color = Color(0.0, 0.0, 0.0, 0.8)
+	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(overlay)
+	_repay_modal = overlay
+
+	var panel := PanelContainer.new()
+	panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	panel.grow_vertical   = Control.GROW_DIRECTION_BOTH
+	panel.custom_minimum_size = Vector2(540, 0)
+	overlay.add_child(panel)
+
+	var margin := MarginContainer.new()
+	for side in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_%s" % side, 24)
+	panel.add_child(margin)
+
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 14)
+	margin.add_child(box)
+
+	var title := Label.new()
+	title.text = "Fin de semaine — Remboursement du prêt"
+	title.add_theme_font_size_override("font_size", 26)
+	box.add_child(title)
+
+	var info := Label.new()
+	info.text = "Licence %s\nDette restante : %d$     échéance J%d (dans %d j)\nArgent disponible : %d$" % [
+		GameManager.license_name(), GameManager.debt_remaining(),
+		GameManager.current_deadline(), GameManager.days_left(), corp.money]
+	box.add_child(info)
+
+	if GameManager.current_day >= GameManager.current_deadline():
+		var warn := Label.new()
+		warn.text = "⚠ Échéance ATTEINTE : solde la totalité ce soir, sinon Game Over."
+		warn.add_theme_color_override("font_color", Color(0.95, 0.4, 0.4))
+		box.add_child(warn)
+
+	_repay_slider = HSlider.new()
+	_repay_slider.min_value = 0
+	_repay_slider.max_value = max_pay
+	_repay_slider.step      = 10
+	_repay_slider.value     = max_pay
+	_repay_slider.custom_minimum_size = Vector2(460, 24)
+	_repay_slider.value_changed.connect(_on_repay_slider_changed)
+	box.add_child(_repay_slider)
+
+	_repay_amount_label = Label.new()
+	box.add_child(_repay_amount_label)
+	_update_repay_label(max_pay)
+
+	var btns := HBoxContainer.new()
+	btns.add_theme_constant_override("separation", 12)
+	box.add_child(btns)
+
+	var none_btn := Button.new()
+	none_btn.text = "Ne rien payer"
+	none_btn.pressed.connect(_set_repay_value.bind(0))
+	btns.add_child(none_btn)
+
+	var all_btn := Button.new()
+	all_btn.text = "Payer le max (%d$)" % max_pay
+	all_btn.pressed.connect(_set_repay_value.bind(max_pay))
+	btns.add_child(all_btn)
+
+	var ok_btn := Button.new()
+	ok_btn.text = "Confirmer"
+	ok_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	ok_btn.pressed.connect(_on_repay_confirm)
+	btns.add_child(ok_btn)
+
+func _set_repay_value(v: int) -> void:
+	if _repay_slider:
+		_repay_slider.value = v
+
+func _on_repay_slider_changed(v: float) -> void:
+	_update_repay_label(int(v))
+
+func _update_repay_label(amount: int) -> void:
+	if _repay_amount_label:
+		_repay_amount_label.text = "Rembourser : %d$     →     dette restante : %d$" % [
+			amount, GameManager.debt_remaining() - amount]
+
+func _on_repay_confirm() -> void:
+	var amount: int = int(_repay_slider.value)
+	GameManager.pay_debt(amount)
+	var ended: bool = GameManager.resolve_weekend()
+	if _repay_modal:
+		_repay_modal.queue_free()
+		_repay_modal = null
+	# Victoire / game over : l'overlay de fin est déjà affiché via signal.
+	if ended or GameManager.current_phase == GameManager.GamePhase.GAME_OVER:
+		return
+	_proceed_to_next_day()
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  FIN DE PARTIE
+# ─────────────────────────────────────────────────────────────────────────────
+
+func _show_end_overlay(_message: String, won: bool) -> void:
+	var overlay := ColorRect.new()
+	overlay.color = Color(0.0, 0.0, 0.0, 0.84)
+	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(overlay)
+
+	var box := VBoxContainer.new()
+	box.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	box.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	box.grow_vertical   = Control.GROW_DIRECTION_BOTH
+	box.add_theme_constant_override("separation", 18)
+	overlay.add_child(box)
+
+	var title := Label.new()
+	title.text = "VICTOIRE !" if won else "GAME OVER"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 48)
+	title.add_theme_color_override("font_color",
+		Color(0.5, 0.95, 0.6) if won else Color(0.95, 0.4, 0.4))
+	box.add_child(title)
+
+	var msg := Label.new()
+	msg.text = GameManager.end_message
+	msg.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	msg.autowrap_mode = TextServer.AUTOWRAP_WORD
+	msg.custom_minimum_size = Vector2(440, 0)
+	box.add_child(msg)
+
+	var btn := Button.new()
+	btn.text = "Recommencer"
+	btn.custom_minimum_size = Vector2(220, 46)
+	btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	btn.pressed.connect(_on_restart)
+	box.add_child(btn)
+
+func _on_restart() -> void:
+	GameManager.start_game("Ma Corp")
 	get_tree().change_scene_to_file.call_deferred("res://scenes/UI/BiddingUI.tscn")

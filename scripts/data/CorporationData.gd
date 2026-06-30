@@ -36,6 +36,22 @@ var inventory: Dictionary = {
 # ─── Recherche : clé = research_id, valeur = niveau (0 = non recherché) ──────
 var research: Dictionary = {}
 
+# ─── Consommables (torches, dynamite…) — persistent, achetés au shop du soir ──
+var consumables: Dictionary = { "torch": 0, "dynamite": 0 }
+
+func add_consumable(id: String, n: int = 1) -> void:
+	consumables[id] = int(consumables.get(id, 0)) + n
+
+func consumable_count(id: String) -> int:
+	return int(consumables.get(id, 0))
+
+# Consomme une unité ; renvoie false s'il n'y en a plus.
+func use_consumable(id: String) -> bool:
+	if consumable_count(id) <= 0:
+		return false
+	consumables[id] = consumable_count(id) - 1
+	return true
+
 # ─── Parcelles remportées ce jour ────────────────────────────────────────────
 var owned_parcels: Array[ParcelData] = []
 

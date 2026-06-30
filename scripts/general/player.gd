@@ -12,6 +12,7 @@ const PLAYER_HEIGHT: int   = 28
 
 @onready var inventory:  Node = $InventoryManager
 @onready var mining:     Node = $MiningComponent
+@onready var jetpack:    Node = $JetpackComponent
 
 # Valeurs effectives, modifiées par la recherche (Bottes / Saut amélioré)
 var _speed:         float = SPEED
@@ -34,6 +35,9 @@ func _physics_process(delta: float) -> void:
 
 	if Input.is_action_just_pressed("jump") and is_on_floor():
 		velocity.y = _jump_velocity
+
+	# Jetpack : maintenir "jump" en l'air pour voler (carburant se recharge au sol).
+	velocity = jetpack.process_flight(velocity, delta, is_on_floor(), Input.is_action_pressed("jump"))
 
 	var dir: float = Input.get_axis("left", "right")
 	velocity.x = dir * _speed if dir != 0.0 else move_toward(velocity.x, 0.0, _speed)

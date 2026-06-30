@@ -8,7 +8,7 @@ extends Node
 
 const GRID_COLUMNS: int = 4
 # Nombre de parcelles compétitives = nb de compagnies + marge de choix.
-const EXTRA_PARCELS: int = 3
+const EXTRA_PARCELS: int = 4
 
 # Prix de base par type de sol
 const SOIL_BASE_PRICE: Dictionary = {
@@ -23,6 +23,15 @@ const DEPTH_PRICE_MULT: Dictionary = {
 	1: 1.0,
 	2: 1.6,
 	3: 2.5,
+}
+
+# Multiplicateur de ressources selon la richesse (doit suivre RICHNESS_DENSITY_MULT
+# côté MineGenerator pour que le Sondage reste honnête).
+const RICHNESS_RESOURCE_MULT: Dictionary = {
+	ParcelData.Richness.POOR:    0.40,
+	ParcelData.Richness.NORMAL:  1.00,
+	ParcelData.Richness.RICH:    1.90,
+	ParcelData.Richness.BONANZA: 3.50,
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -59,6 +68,7 @@ func _make_parcel(id: int, pos: Vector2i, day: int) -> ParcelData:
 	p.soil_type      = _pick_soil(p.depth_tier)
 	p.parcel_type    = _pick_type(day)
 	p.resource_hint  = _pick_hint(p.depth_tier, p.parcel_type)
+	p.richness       = _pick_richness()
 
 	# Prix de base
 	var base_price: int   = SOIL_BASE_PRICE[p.soil_type]
@@ -87,6 +97,8 @@ func _make_parcel(id: int, pos: Vector2i, day: int) -> ParcelData:
 	return p
 
 func _make_public_parcel(id: int) -> ParcelData:
+	# Parcelle "starter" : toujours disponible et bon marché, mais PLUS gratuite
+	# (filet de sécurité payant). Sa richesse varie comme les autres.
 	var p := ParcelData.new()
 	p.parcel_id        = id
 	p.grid_position    = Vector2i(-1, -1)
@@ -94,9 +106,10 @@ func _make_public_parcel(id: int) -> ParcelData:
 	p.soil_type        = ParcelData.SoilType.CLAY
 	p.parcel_type      = ParcelData.ParcelType.NORMAL
 	p.resource_hint    = ParcelData.ResourceHint.COAL
-	p.base_price       = 0
+	p.base_price       = 50
 	p.is_public        = true
-	p.actual_resources = { "coal": randi_range(8, 22) }
+	p.richness         = _pick_richness()
+	p.actual_resources = _generate_resources(p)
 	return p
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -113,12 +126,15 @@ func _pick_depth(pos: Vector2i, day: int) -> int:
 	var deep_chance := clampf(0.08 + x_bias * 0.20 + day_bias, 0.05, 0.55)
 	var mid_chance  := clampf(0.25 + x_bias * 0.10 + day_bias * 0.5, 0.20, 0.50)
 
+	var tier: int = 1
 	var roll := randf()
 	if roll < deep_chance:
-		return 3
+		tier = 3
 	elif roll < deep_chance + mid_chance:
-		return 2
-	return 1
+		tier = 2
+
+	# La licence plafonne la profondeur accessible (L1 = tier 1 seulement)
+	return mini(tier, GameManager.license_max_tier())
 
 func _pick_soil(depth: int) -> ParcelData.SoilType:
 	var roll := randf()
@@ -180,6 +196,14 @@ func _pick_required_research(depth: int) -> String:
 		3: return "drill_volcanic"
 	return "drill_basic"
 
+# Richesse de la parcelle (cachée, révélée par le Sondage). Filon très rare.
+func _pick_richness() -> ParcelData.Richness:
+	var roll := randf()
+	if roll < 0.04:   return ParcelData.Richness.BONANZA  #  4 %
+	elif roll < 0.22: return ParcelData.Richness.RICH     # 18 %
+	elif roll < 0.72: return ParcelData.Richness.NORMAL   # 50 %
+	return ParcelData.Richness.POOR                       # 28 %
+
 # ─────────────────────────────────────────────────────────────────────────────
 #  GÉNÉRATION DES RESSOURCES CACHÉES
 # ─────────────────────────────────────────────────────────────────────────────
@@ -204,6 +228,9 @@ func _generate_resources(p: ParcelData) -> Dictionary:
 			base = int(base * randf_range(1.6, 2.8))           # Très riche mais risqué
 		ParcelData.ParcelType.RESERVED:
 			base = int(base * randf_range(1.3, 1.8))           # Bonus de ressources
+
+	# Richesse de la parcelle (Pauvre → Filon) : échelle commune avec la densité de mine
+	base = int(base * RICHNESS_RESOURCE_MULT.get(p.richness, 1.0))
 
 	# Résoudre le hint pour les mystères
 	var hint := p.resource_hint

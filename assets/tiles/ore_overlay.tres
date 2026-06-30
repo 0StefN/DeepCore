@@ -1,0 +1,16 @@
+[gd_resource type="TileSet" format=3 uid="uid://bnq2oretl8st0"]
+
+[ext_resource type="Texture2D" uid="uid://cxq8orov3rl7k" path="res://assets/tiles/ore_overlay.png" id="1_ore0"]
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_ore0"]
+texture = ExtResource("1_ore0")
+texture_region_size = Vector2i(32, 32)
+0:0/0 = 0
+1:0/0 = 0
+2:0/0 = 0
+3:0/0 = 0
+4:0/0 = 0
+
+[resource]
+tile_size = Vector2i(32, 32)
+sources/0 = SubResource("TileSetAtlasSource_ore0")

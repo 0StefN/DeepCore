@@ -158,7 +158,7 @@ func _on_mouse_exited() -> void:
 
 func set_auction_state(current_bid: int, holder_id: int, holder_color: Color, is_my_target: bool) -> void:
 	if parcel_data and parcel_data.is_public:
-		bid_label.text     = "Filet de sécurité"
+		bid_label.text     = "Repli — %d$" % parcel_data.base_price
 		bid_label.modulate = Color(0.7, 0.9, 0.7)
 		_apply_border(Color(0.4, 0.5, 0.4), 2)
 		return

@@ -32,6 +32,13 @@ enum ResourceHint {
 	UNKNOWN,   # Parcelle Mystère — hint masqué
 }
 
+enum Richness {
+	POOR,      # Pauvre  : peu de minerai
+	NORMAL,    # Normale : standard (rentable)
+	RICH,      # Riche   : bien fournie
+	BONANZA,   # Filon   : jackpot, très rare
+}
+
 # ─── Infos visibles avant achat ───────────────────────────────────────────────
 @export var parcel_id: int = 0
 @export var grid_position: Vector2i = Vector2i.ZERO
@@ -44,6 +51,7 @@ enum ResourceHint {
 
 # ─── Infos cachées, révélées pendant la mine ──────────────────────────────────
 var actual_resources: Dictionary = {}    # { "coal": 50, "iron": 20, … }
+var richness: Richness = Richness.NORMAL  # Densité réelle de la mine (révélée par Sondage)
 var collapse_chance: float = 0.0        # Pour UNSTABLE
 var is_public: bool = false             # Parcelle publique gratuite
 
@@ -102,6 +110,14 @@ func get_depth_icon() -> String:
 		2: return "🟡"
 		3: return "🔴"
 	return "⚪"
+
+func get_richness_display() -> String:
+	match richness:
+		Richness.POOR:    return "Pauvre"
+		Richness.NORMAL:  return "Normale"
+		Richness.RICH:    return "Riche"
+		Richness.BONANZA: return "Filon !"
+	return "?"
 
 func is_owned_by(corp_id: int) -> bool:
 	return corp_id in owner_ids

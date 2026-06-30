@@ -82,6 +82,17 @@ func deposit_all() -> void:
 	if deposited:
 		inventory_changed.emit()
 
+# Retire une unité de la ressource donnée (drop manuel). Renvoie true si retiré.
+func remove_one(resource: String) -> bool:
+	for slot in slots:
+		if slot["resource"] == resource and slot["amount"] > 0:
+			slot["amount"] -= 1
+			if slot["amount"] <= 0:
+				slot["resource"] = ""
+			inventory_changed.emit()
+			return true
+	return false
+
 # ─────────────────────────────────────────────────────────────────────────────
 #  QUERIES
 # ─────────────────────────────────────────────────────────────────────────────

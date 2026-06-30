@@ -423,7 +423,7 @@ func validate() -> void:
 		var price: int
 		if pid == -1:
 			parcel = public_parcel
-			price  = 0
+			price  = public_parcel.base_price if public_parcel else 0
 		else:
 			parcel = GameManager.get_parcel_by_id(pid)
 			price  = bid[pid]
@@ -469,6 +469,11 @@ func get_company_parcel_id(corp_id: int) -> int:
 	if settled_public.get(corp_id, false) and public_parcel:
 		return public_parcel.parcel_id
 	return -1
+
+# Plafond de mise d'une IA sur une parcelle donnée (pour le Réseau d'Espions).
+func get_ai_maxpay(corp_id: int, pid: int) -> int:
+	var caps: Dictionary = ai_maxpay.get(corp_id, {})
+	return int(caps.get(pid, 0))
 
 func get_homeless_ai_count() -> int:
 	var n: int = 0
